@@ -1,64 +1,61 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Charts{% endblock title %}
+{% block title %}Trash Monitoring Charts{% endblock title %}
 
 {% block content %}
-  <div class="container-fluid py-2">
-    <!-- [ Main Content ] start -->
-    <div class="row">
-      <!-- [ Bar Chart ] start -->
-      <div class="col-sm-12 col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <h5>Bar Chart</h5>
-          </div>
-          <div class="card-body text-center">
-            <div id="bar-chart"></div>
-          </div>
+<div class="container-fluid py-2">
+  <div class="row">
+    <!-- Fill Level Bar Chart -->
+    <div class="col-sm-12 col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5>Trash Fill Levels</h5>
+        </div>
+        <div class="card-body text-center">
+          <div id="fill-level-bar-chart"></div>
         </div>
       </div>
-      <!-- [ Bar Chart ] end -->
-
-      <!-- [ Pie Chart ] start -->
-      <div class="col-sm-12 col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <h5>Pie Chart</h5>
-          </div>
-          <div class="card-body text-center">
-            <div id="pie-chart"></div>
-          </div>
-        </div>
-      </div>
-      <!-- [ Pie Chart ] end -->
     </div>
-    <!-- [ Main Content ] end -->
+
+    <!-- Trash Type Classification Pie Chart -->
+    <div class="col-sm-12 col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5>Classification Distribution</h5>
+        </div>
+        <div class="card-body text-center">
+          <div id="classification-pie-chart"></div>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 {% endblock content %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    var products = JSON.parse('{{ products | tojson | safe }}');
-    var names = products.map(p => p.name);
-    var prices = products.map(p => p.price);
+  document.addEventListener("DOMContentLoaded", function () {
+    // Example dummy data, should be replaced with actual sensor/CV data from Flask
+    var trashTypes = ['Biodegradable', 'Non-Biodegradable', 'Recyclable'];
+    var fillLevels = [65, 45, 30];
+    var classifiedCounts = [120, 80, 100];
 
-    var barOptions = {
+    var fillLevelChart = new ApexCharts(document.querySelector("#fill-level-bar-chart"), {
       chart: { type: 'bar', height: 350 },
-      series: [{ name: 'Price', data: prices }],
-      xaxis: { categories: names }
-    };
-    var barChart = new ApexCharts(document.querySelector("#bar-chart"), barOptions);
-    barChart.render();
+      series: [{ name: 'Fill Level (%)', data: fillLevels }],
+      xaxis: { categories: trashTypes },
+      colors: ['#66bb6a', '#ffa726', '#42a5f5']
+    });
+    fillLevelChart.render();
 
-    var pieOptions = {
+    var classificationChart = new ApexCharts(document.querySelector("#classification-pie-chart"), {
       chart: { type: 'pie', height: 350 },
-      series: prices,
-      labels: names
-    };
-    var pieChart = new ApexCharts(document.querySelector("#pie-chart"), pieOptions);
-    pieChart.render();
+      series: classifiedCounts,
+      labels: trashTypes,
+      colors: ['#66bb6a', '#ffa726', '#42a5f5']
+    });
+    classificationChart.render();
   });
 </script>
 {% endblock extra_js %}

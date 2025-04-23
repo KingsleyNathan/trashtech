@@ -28,9 +28,24 @@ def index():
 @blueprint.route('/tables')
 def tables():
     context = {
-        'segment': 'tables'
+        'segment': 'Biodegradable',
     }
     return render_template('pages/tables.html', **context)
+
+@blueprint.route('/tables2')
+def tables2():
+    context = {
+        'segment': 'Non-Biodegradable'
+    }
+    return render_template('pages/tables2.html', **context)
+
+@blueprint.route('/tables3')
+def tables3():
+    context = {
+        'segment': 'Recyclable'
+    }
+    return render_template('pages/tables3.html', **context)
+
 
 @blueprint.route('/billing')
 def billing():
