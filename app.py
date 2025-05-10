@@ -3,8 +3,8 @@ from home.routes import home_blueprint
 import os
 
 app = Flask(__name__,
-            template_folder='templates',
-            static_folder='static')
+            template_folder='frontend/templates',
+            static_folder='frontend/static')
 
 app.register_blueprint(home_blueprint)
 
