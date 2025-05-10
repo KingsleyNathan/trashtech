@@ -12,6 +12,14 @@
         <li class="nav-item mt-3">
           <h6 class="ps-4 ms-2 text-uppercase text-xs text-dark font-weight-bolder opacity-5">OVERVIEW</h6>
         </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if 'notifications' == segment %} active bg-gradient-dark text-white {% else %} text-dark {% endif %}" href="{{ url_for('home_blueprint.notifications') }}">
+            <i class="material-symbols-rounded opacity-5">notifications</i>
+            <span class="nav-link-text ms-1">Notifications</span>
+          </a>
+        </li>
+        
         <li class="nav-item">
           <a class="nav-link {% if 'dashboard' == segment %} active bg-gradient-dark text-white {% else %} text-dark {% endif %}" href="{{ url_for('home_blueprint.index') }}">
             <i class="material-symbols-rounded opacity-5">dashboard</i>
@@ -19,22 +27,9 @@
           </a>
         </li>
 
-        <li class="nav-item">
-          <a class="nav-link {% if 'charts' == segment %} active bg-gradient-dark text-white {% else %} text-dark {% endif %}" href="{{ url_for('charts_blueprint.charts') }}">
-            <i class="material-symbols-rounded opacity-5">bar_chart</i>
-            <span class="nav-link-text ms-1">Charts</span>
-          </a>
-        </li>
-
+        
         <li class="nav-item mt-3">
           <h6 class="ps-4 ms-2 text-uppercase text-xs text-dark font-weight-bolder opacity-5">DATABASE</h6>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link {% if 'notifications' == segment %} active bg-gradient-dark text-white {% else %} text-dark {% endif %}" href="{{ url_for('home_blueprint.notifications') }}">
-            <i class="material-symbols-rounded opacity-5">notifications</i>
-            <span class="nav-link-text ms-1">Notifications</span>
-          </a>
         </li>
 
         <li class="nav-item">
@@ -55,6 +50,8 @@
             <span class="nav-link-text ms-1">Recyclable</span>
           </a>
         </li>
+      </ul>
+    </div>
 
     <div class="sidenav-footer position-absolute w-100 bottom-0 ">
       <div class="mx-3">

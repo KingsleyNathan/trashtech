@@ -4,23 +4,24 @@
 
 {% block content %}
 <div class="container-fluid py-2">
+  <!-- Dashboard Cards Section -->
   <div class="row">
     <div class="ms-3">
       <h3 class="mb-0 h4 font-weight-bolder">Trash Can Monitoring</h3>
       <p class="mb-4">Live monitoring of trash fill levels, toxicity, classification status, and system health.</p>
     </div>
 
-    <!-- Fill Levels -->
+    <!-- Toxic Alert -->
     <div class="col-xl-4 col-sm-6 mb-4">
       <div class="card">
         <div class="card-header p-2 ps-3">
           <div class="d-flex justify-content-between">
             <div>
-              <p class="text-sm mb-0 text-capitalize">Biodegradable Fill Level</p>
-              <h4 class="mb-0">65%</h4>
+              <p class="text-sm mb-0 text-capitalize">Biodegradable Toxic Alert</p>
+              <h4 class="mb-0 text-danger">HIGH</h4>
             </div>
-            <div class="icon icon-md icon-shape bg-gradient-success shadow text-center border-radius-lg">
-              <i class="material-symbols-rounded opacity-10">eco</i>
+            <div class="icon icon-md icon-shape bg-gradient-danger shadow text-center border-radius-lg">
+              <i class="material-symbols-rounded opacity-10">warning</i>
             </div>
           </div>
         </div>
@@ -53,23 +54,6 @@
             </div>
             <div class="icon icon-md icon-shape bg-gradient-info shadow text-center border-radius-lg">
               <i class="material-symbols-rounded opacity-10">recycling</i>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toxicity Card -->
-    <div class="col-xl-6 col-sm-6 mb-4">
-      <div class="card">
-        <div class="card-header p-2 ps-3">
-          <div class="d-flex justify-content-between">
-            <div>
-              <p class="text-sm mb-0 text-capitalize">Toxic Gas Detected</p>
-              <h4 class="mb-0 text-danger">TOXIC: HIGH</h4>
-            </div>
-            <div class="icon icon-md icon-shape bg-gradient-danger shadow text-center border-radius-lg">
-              <i class="material-symbols-rounded opacity-10">warning</i>
             </div>
           </div>
         </div>
@@ -109,7 +93,61 @@
         </div>
       </div>
     </div>
+  </div>
 
+  <!-- Charts Section -->
+  <div class="row mt-4">
+    <!-- Fill Level Bar Chart -->
+    <div class="col-sm-12 col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5>Trash Fill Levels</h5>
+        </div>
+        <div class="card-body text-center">
+          <div id="fill-level-bar-chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trash Type Classification Pie Chart -->
+    <div class="col-sm-12 col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5>Classification Distribution</h5>
+        </div>
+        <div class="card-body text-center">
+          <div id="classification-pie-chart"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock content %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Example dummy data, should be replaced with actual sensor/CV data from Flask
+    var trashTypes = ['Biodegradable', 'Non-Biodegradable', 'Recyclable'];
+    var fillLevels = [65, 45, 30];
+    var classifiedCounts = [120, 80, 100];
+
+    var fillLevelChart = new ApexCharts(document.querySelector("#fill-level-bar-chart"), {
+      chart: { type: 'bar', height: 350 },
+      series: [{ name: 'Fill Level (%)', data: fillLevels }],
+      xaxis: { categories: trashTypes },
+      colors: ['#66bb6a', '#ffa726', '#42a5f5']
+    });
+    fillLevelChart.render();
+
+    var classificationChart = new ApexCharts(document.querySelector("#classification-pie-chart"), {
+      chart: { type: 'pie', height: 350 },
+      series: classifiedCounts,
+      labels: trashTypes,
+      colors: ['#66bb6a', '#ffa726', '#42a5f5']
+    });
+    classificationChart.render();
+  });
+</script>
+{% endblock extra_js %}

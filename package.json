@@ -1,22 +1,21 @@
 {
-  "name": "flask-soft-ui-dashboard",
+  "name": "flask-material-dashboard",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Flask Material Dashboard",
   "scripts": {
-    "dev": "vite build --watch --mode development",
-    "build": "vite build --mode production && npm run minify-css",
-    "minify-css": "postcss static/assets/css/*.css --dir static/assets/css --no-map --ext .min.css"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "bootstrap": "^5.3.0",
+    "chart.js": "^4.4.0",
+    "perfect-scrollbar": "^1.5.5"
+  },
   "devDependencies": {
-    "autoprefixer": "^10.4.20",
-    "cssnano": "^7.0.6",
-    "postcss": "^8.5.3",
-    "postcss-cli": "^11.0.0",
-    "sass": "^1.85.1",
-    "vite": "^6.2.0"
+    "vite": "^5.0.0",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16"
   }
 }
