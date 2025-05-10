@@ -36,11 +36,14 @@ A real-time monitoring dashboard for smart trash cans, built with Flask and Mate
 ## Project Structure
 ```
 flask-material-dashboard/
-├── static/           # Static files (CSS, JS, images)
-├── templates/        # HTML templates
-│   ├── includes/    # Reusable components
-│   ├── layouts/     # Base templates
-│   └── pages/       # Page templates
+├── frontend/        # Frontend files
+│   ├── static/     # Static files (CSS, JS, images)
+│   ├── templates/  # HTML templates
+│   │   ├── includes/    # Reusable components
+│   │   ├── layouts/     # Base templates
+│   │   └── pages/       # Page templates
+│   ├── package.json     # Node.js dependencies
+│   └── vite.config.js   # Vite configuration
 ├── home/            # Backend routes
 ├── env/             # Python virtual environment
 └── app.py          # Main Flask application
@@ -79,6 +82,9 @@ The application will be available at `http://localhost:5000`
 
 ### Frontend Development
 ```bash
+# Navigate to frontend directory
+cd frontend
+
 # Install Node.js dependencies
 npm install
 
@@ -89,7 +95,7 @@ npm run dev
 ### Backend Development
 - The Flask application uses blueprints for route organization
 - Main routes are in `home/routes.py`
-- Templates are in the `templates` directory
+- Templates are in the `frontend/templates` directory
 
 ## Features in Detail
 
@@ -124,4 +130,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 Kingsley Nathan - [@KingsleyNathan](https://github.com/KingsleyNathan)
 
-Project Link: [https://github.com/KingsleyNathan/trashtech-dashboard](https://github.com/KingsleyNathan/trashtech-dashboard) 
+Project Link: [https://github.com/KingsleyNathan/trashtech-dashboard](https://github.com/KingsleyNathan/trashtech-dashboard)
