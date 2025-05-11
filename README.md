@@ -1,24 +1,69 @@
-# TrashTech Dashboard
+# TrashTech Flask Material Dashboard
 
-A real-time monitoring dashboard for smart trash cans, built with Flask and Material Dashboard.
+A web dashboard for real-time monitoring of smart trash can sensors, built with Flask and Material Dashboard.
 
 ## Features
+- Live monitoring of trash fill levels, toxicity, and classification status
+- Real-time charts for trash counts and classification distribution
+- Latest detection and update cards
+- Auto-refresh for sensor data and dashboard cards
+- MySQL database integration
 
-- **Real-time Monitoring**
-  - Toxic Alert System
-  - Fill Level Tracking
-  - Waste Classification
-  - Network Status
+## Setup Instructions
 
-- **Waste Categories**
-  - Biodegradable
-  - Non-Biodegradable
-  - Recyclable
+### 1. Clone the repository
+```bash
+git clone <your-repo-url>
+cd flask-material-dashboard
+```
 
-- **Visual Analytics**
-  - Fill Level Bar Charts
-  - Classification Distribution Pie Charts
-  - Real-time Updates
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configure the database
+- Ensure you have a MySQL server running.
+- Create a database (e.g., `trashtechdb`) and update your connection settings in `backend/routes/connection.py`.
+- The `trash` table should have at least: `id`, `category`, `timestamp` columns.
+
+### 4. Run the Flask app
+```bash
+flask run
+```
+Or:
+```bash
+python app.py
+```
+
+### 5. Access the dashboard
+Open your browser and go to: [http://localhost:5000](http://localhost:5000)
+
+## Dashboard Overview
+- **Toxic Alert:** Shows current status for Biodegradable bin.
+- **Fill Levels:** Shows fill percentage for Non-Biodegradable and Recyclable bins.
+- **Latest Classification:** Shows the most recent trash detection and timestamp.
+- **Detected Update for Sensors:** Shows the latest update timestamp for all sensors (auto-refreshes every 1 minute).
+- **Charts:**
+  - Bar chart for overall trash counts (Recyclable, Biodegradable, Non-Biodegradable)
+  - Pie chart for classification distribution
+
+## Auto-Refresh
+- The "Detected Update for Sensors" card auto-refreshes every 1 minute.
+- Charts and other dashboard data auto-refresh every 5 minutes.
+
+## Troubleshooting
+- **Database connection errors:** Check your MySQL credentials and that the server is running.
+- **No data showing:** Ensure your `trash` table has data and category names match exactly: `Recyclable`, `Biodegradable`, `Non-Biodegradable`.
+- **Frontend not updating:** Open the browser console (F12) to check for JavaScript errors or failed API requests.
+- **Backend logs:** Check your terminal for Flask server output and errors.
+
+## Customization
+- To change refresh intervals, edit the JavaScript in `frontend/templates/pages/index.html`.
+- To add more features or cards, edit the HTML and backend routes as needed.
+
+## License
+MIT
 
 ## Tech Stack
 
@@ -48,35 +93,6 @@ flask-material-dashboard/
 ├── env/             # Python virtual environment
 └── app.py          # Main Flask application
 ```
-
-## Setup Instructions
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/KingsleyNathan/trashtech-dashboard.git
-cd trashtech-dashboard
-```
-
-### 2. Set Up Python Environment
-```bash
-# Create virtual environment
-python -m venv env
-
-# Activate virtual environment
-# On Windows:
-.\env\Scripts\activate
-# On Unix or MacOS:
-source env/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Run the Application
-```bash
-python app.py
-```
-The application will be available at `http://localhost:5000`
 
 ## Development
 

@@ -11,7 +11,7 @@
       <p class="mb-4">Live monitoring of trash fill levels, toxicity, classification status, and system health.</p>
     </div>
 
-    <!-- Toxic Alert -->
+    <!-- Toxic Alert (STATIC) -->
     <div class="col-xl-4 col-sm-6 mb-4">
       <div class="card">
         <div class="card-header p-2 ps-3">
@@ -28,13 +28,14 @@
       </div>
     </div>
 
+    <!-- Non-Biodegradable Fill Level -->
     <div class="col-xl-4 col-sm-6 mb-4">
       <div class="card">
         <div class="card-header p-2 ps-3">
           <div class="d-flex justify-content-between">
             <div>
               <p class="text-sm mb-0 text-capitalize">Non-Biodegradable Fill Level</p>
-              <h4 class="mb-0">45%</h4>
+              <h4 class="mb-0" id="nonbio-fill-level">45%</h4>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-warning shadow text-center border-radius-lg">
               <i class="material-symbols-rounded opacity-10">delete</i>
@@ -44,13 +45,14 @@
       </div>
     </div>
 
+    <!-- Recyclable Fill Level -->
     <div class="col-xl-4 col-sm-6 mb-4">
       <div class="card">
         <div class="card-header p-2 ps-3">
           <div class="d-flex justify-content-between">
             <div>
               <p class="text-sm mb-0 text-capitalize">Recyclable Fill Level</p>
-              <h4 class="mb-0">30%</h4>
+              <h4 class="mb-0" id="recyclable-fill-level">30%</h4>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-info shadow text-center border-radius-lg">
               <i class="material-symbols-rounded opacity-10">recycling</i>
@@ -60,34 +62,43 @@
       </div>
     </div>
 
-    <!-- CV Classification Status -->
-    <div class="col-xl-6 col-sm-6 mb-4">
-      <div class="card">
-        <div class="card-header p-2 ps-3">
-          <div class="d-flex justify-content-between">
-            <div>
-              <p class="text-sm mb-0 text-capitalize">Latest Classification</p>
-              <h4 class="mb-0">Detected: Recyclable</h4>
-            </div>
-            <div class="icon icon-md icon-shape bg-gradient-primary shadow text-center border-radius-lg">
-              <i class="material-symbols-rounded opacity-10">search</i>
+    <!-- Latest Classification and Latest Updates for All Sensors Row -->
+    <div class="row">
+      <!-- Latest Classification -->
+      <div class="col-xl-6 col-sm-6 mb-4">
+        <div class="card">
+          <div class="card-header p-2 ps-3">
+            <div class="d-flex justify-content-between">
+              <div>
+                <p class="text-sm mb-0 text-capitalize">Latest Classification</p>
+                <h4 class="mb-0">
+                  Detected: {{ latest_detection.category if latest_detection and latest_detection.category else 'No Data' }}
+                </h4>
+                <p class="text-xs text-secondary mb-0">
+                  {{ latest_detection.timestamp if latest_detection and latest_detection.timestamp else '' }}
+                </p>
+              </div>
+              <div class="icon icon-md icon-shape bg-gradient-primary shadow text-center border-radius-lg">
+                <i class="material-symbols-rounded opacity-10">search</i>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Network Status -->
-    <div class="col-xl-6 col-sm-6 mb-4">
-      <div class="card">
-        <div class="card-header p-2 ps-3">
-          <div class="d-flex justify-content-between">
-            <div>
-              <p class="text-sm mb-0 text-capitalize">Network Status</p>
-              <h4 class="mb-0 text-success">Online</h4>
-            </div>
-            <div class="icon icon-md icon-shape bg-gradient-dark shadow text-center border-radius-lg">
-              <i class="material-symbols-rounded opacity-10">wifi</i>
+      <!-- Detected update card -->
+      <div class="col-xl-6 col-sm-6 mb-4">
+        <div class="card">
+          <div class="card-header p-2 ps-3">
+            <div class="d-flex justify-content-between">
+              <div>
+                <p class="text-sm mb-0 text-capitalize">Detected Update for Sensors</p>
+                <h4 class="mb-0 detected-update-timestamp">
+                  {{ latest_detection.timestamp if latest_detection and latest_detection.timestamp else 'No Data' }}
+                </h4>
+              </div>
+              <div class="icon icon-md icon-shape bg-gradient-success shadow text-center border-radius-lg">
+                <i class="material-symbols-rounded opacity-10">update</i>
+              </div>
             </div>
           </div>
         </div>
@@ -97,26 +108,26 @@
 
   <!-- Charts Section -->
   <div class="row mt-4">
-    <!-- Fill Level Bar Chart -->
+    <!-- Trash Counts Bar Chart -->
     <div class="col-sm-12 col-md-6">
       <div class="card">
         <div class="card-header">
-          <h5>Trash Fill Levels</h5>
+          <h5>Trash Counts</h5>
         </div>
         <div class="card-body text-center">
-          <div id="fill-level-bar-chart"></div>
+          <div id="trash-counts-chart"></div>
         </div>
       </div>
     </div>
 
-    <!-- Trash Type Classification Pie Chart -->
+    <!-- Classification Distribution Pie Chart -->
     <div class="col-sm-12 col-md-6">
       <div class="card">
         <div class="card-header">
           <h5>Classification Distribution</h5>
         </div>
         <div class="card-body text-center">
-          <div id="classification-pie-chart"></div>
+          <div id="classification-distribution-chart"></div>
         </div>
       </div>
     </div>
@@ -128,26 +139,128 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // Example dummy data, should be replaced with actual sensor/CV data from Flask
-    var trashTypes = ['Biodegradable', 'Non-Biodegradable', 'Recyclable'];
-    var fillLevels = [65, 45, 30];
-    var classifiedCounts = [120, 80, 100];
-
-    var fillLevelChart = new ApexCharts(document.querySelector("#fill-level-bar-chart"), {
-      chart: { type: 'bar', height: 350 },
-      series: [{ name: 'Fill Level (%)', data: fillLevels }],
-      xaxis: { categories: trashTypes },
-      colors: ['#66bb6a', '#ffa726', '#42a5f5']
+    // Initialize charts
+    const trashCountsChart = new ApexCharts(document.querySelector("#trash-counts-chart"), {
+      chart: { 
+        type: 'bar',
+        height: 350,
+        animations: {
+          enabled: true
+        }
+      },
+      series: [{
+        name: 'Count',
+        data: []
+      }],
+      xaxis: { 
+        categories: ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
+      },
+      colors: ['#42a5f5', '#66bb6a', '#ffa726'],
+      plotOptions: {
+        bar: {
+          distributed: true,
+          columnWidth: '50%',
+        }
+      },
+      legend: {
+        show: false
+      }
     });
-    fillLevelChart.render();
+    trashCountsChart.render();
 
-    var classificationChart = new ApexCharts(document.querySelector("#classification-pie-chart"), {
-      chart: { type: 'pie', height: 350 },
-      series: classifiedCounts,
-      labels: trashTypes,
-      colors: ['#66bb6a', '#ffa726', '#42a5f5']
+    const expectedCategories = ['Recyclable', 'Biodegradable', 'Non-Biodegradable'];
+    const classificationChart = new ApexCharts(document.querySelector("#classification-distribution-chart"), {
+      chart: { 
+        type: 'pie',
+        height: 350
+      },
+      series: [],
+      labels: expectedCategories,
+      colors: ['#42a5f5', '#66bb6a', '#ffa726'],
+      legend: {
+        position: 'bottom'
+      }
     });
     classificationChart.render();
+
+    // Function to update dashboard data
+    function updateDashboard() {
+      fetch('/api/dashboard-data')
+        .then(response => response.json())
+        .then(data => {
+          // Calculate total counts for each category
+          const totalCounts = {
+            'Recyclable': 0,
+            'Biodegradable': 0,
+            'Non-Biodegradable': 0
+          };
+          data.classification_distribution.forEach(item => {
+            totalCounts[item.category] = item.count;
+          });
+          trashCountsChart.updateSeries([{
+            name: 'Count',
+            data: [
+              totalCounts['Recyclable'],
+              totalCounts['Biodegradable'],
+              totalCounts['Non-Biodegradable']
+            ]
+          }]);
+
+          // Update classification distribution chart
+          classificationChart.updateSeries([
+            totalCounts['Recyclable'],
+            totalCounts['Biodegradable'],
+            totalCounts['Non-Biodegradable']
+          ]);
+          classificationChart.updateOptions({
+            labels: expectedCategories
+          });
+
+          // Update only the Latest Detection card dynamically
+          const latestDetectionCard = document.getElementById('latest-detection-card');
+          if (latestDetectionCard && data.latest_detection) {
+            latestDetectionCard.querySelector('h4').textContent = data.latest_detection.category;
+            latestDetectionCard.querySelector('p.text-xs').textContent = data.latest_detection.timestamp;
+          }
+
+          // Update fill levels based on counts
+          const nonBioFillLevel = Math.min(Math.round((totalCounts['Non-Biodegradable'] / 100) * 100), 100);
+          const recyclableFillLevel = Math.min(Math.round((totalCounts['Recyclable'] / 100) * 100), 100);
+          
+          document.getElementById('nonbio-fill-level').textContent = `${nonBioFillLevel}%`;
+          document.getElementById('recyclable-fill-level').textContent = `${recyclableFillLevel}%`;
+        });
+    }
+
+    // Initial update
+    updateDashboard();
+
+    // Auto-refresh every 5 minutes
+    setInterval(updateDashboard, 300000);
+
+    // Function to update Detected Update for Sensors card
+    function updateDetectedUpdateCard() {
+      fetch('/api/dashboard-data')
+        .then(response => response.json())
+        .then(data => {
+          const el = document.querySelector('.detected-update-timestamp');
+          console.log('Updating Detected Update for Sensors card:', data.latest_detection ? data.latest_detection.timestamp : 'No Data', el);
+          if (el) {
+            if (data.latest_detection) {
+              el.textContent = data.latest_detection.timestamp || 'No Data';
+            } else {
+              el.textContent = 'No Data';
+            }
+          } else {
+            console.warn('No element found with class detected-update-timestamp');
+          }
+        });
+    }
+
+    // Initial update
+    updateDetectedUpdateCard();
+    // Auto-refresh every 1 minute
+    setInterval(updateDetectedUpdateCard, 60000);
   });
 </script>
 {% endblock extra_js %}
