@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container-fluid py-2">
   <!-- Dashboard Cards Section -->
-  <div class="row">
+  <div class="row d-flex align-items-stretch">
     <div class="ms-3">
       <h3 class="mb-0 h4 font-weight-bolder">Trash Can Monitoring</h3>
       <p class="mb-4">Live monitoring of trash fill levels, toxicity, classification status, and system health.</p>
@@ -17,8 +17,9 @@
         <div class="card-header p-2 ps-3">
           <div class="d-flex justify-content-between">
             <div>
-              <p class="text-sm mb-0 text-capitalize">Biodegradable Toxic Alert</p>
-              <h4 class="mb-0 text-danger">HIGH</h4>
+              <p class="text-sm mb-0 text-capitalize">Toxic Alert Status</p>
+              <h4 class="mb-0" id="toxic-status">LOADING...</h4>
+              <small id="toxic-timestamp"></small>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-danger shadow text-center border-radius-lg">
               <i class="material-symbols-rounded opacity-10">warning</i>
@@ -28,14 +29,16 @@
       </div>
     </div>
 
+
     <!-- Non-Biodegradable Fill Level -->
-    <div class="col-xl-4 col-sm-6 mb-4">
-      <div class="card">
+    <div class="col-xl-4 col-sm-6 mb-4 d-flex">
+      <div class="card dashboard-card h-100 w-100">
         <div class="card-header p-2 ps-3">
           <div class="d-flex justify-content-between">
             <div>
               <p class="text-sm mb-0 text-capitalize">Non-Biodegradable Fill Level</p>
               <h4 class="mb-0" id="nonbio-fill-level">45%</h4>
+              <small id="nonbio-timestamp"></small>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-warning shadow text-center border-radius-lg">
               <i class="material-symbols-rounded opacity-10">delete</i>
@@ -46,13 +49,14 @@
     </div>
 
     <!-- Recyclable Fill Level -->
-    <div class="col-xl-4 col-sm-6 mb-4">
-      <div class="card">
+    <div class="col-xl-4 col-sm-6 mb-4 d-flex">
+      <div class="card dashboard-card h-100 w-100">
         <div class="card-header p-2 ps-3">
           <div class="d-flex justify-content-between">
             <div>
               <p class="text-sm mb-0 text-capitalize">Recyclable Fill Level</p>
               <h4 class="mb-0" id="recyclable-fill-level">30%</h4>
+              <small id="recyclable-timestamp"></small>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-info shadow text-center border-radius-lg">
               <i class="material-symbols-rounded opacity-10">recycling</i>
@@ -74,9 +78,6 @@
                 <h4 class="mb-0">
                   Detected: {{ latest_detection.category if latest_detection and latest_detection.category else 'No Data' }}
                 </h4>
-                <p class="text-xs text-secondary mb-0">
-                  {{ latest_detection.timestamp if latest_detection and latest_detection.timestamp else '' }}
-                </p>
               </div>
               <div class="icon icon-md icon-shape bg-gradient-primary shadow text-center border-radius-lg">
                 <i class="material-symbols-rounded opacity-10">search</i>
@@ -91,7 +92,7 @@
           <div class="card-header p-2 ps-3">
             <div class="d-flex justify-content-between">
               <div>
-                <p class="text-sm mb-0 text-capitalize">Detected Update for Sensors</p>
+                <p class="text-sm mb-0 text-capitalize">Time of Last Detection</p>
                 <h4 class="mb-0 detected-update-timestamp">
                   {{ latest_detection.timestamp if latest_detection and latest_detection.timestamp else 'No Data' }}
                 </h4>
@@ -220,15 +221,84 @@
           const latestDetectionCard = document.getElementById('latest-detection-card');
           if (latestDetectionCard && data.latest_detection) {
             latestDetectionCard.querySelector('h4').textContent = data.latest_detection.category;
-            latestDetectionCard.querySelector('p.text-xs').textContent = data.latest_detection.timestamp;
           }
 
           // Update fill levels based on counts
           const nonBioFillLevel = Math.min(Math.round((totalCounts['Non-Biodegradable'] / 100) * 100), 100);
           const recyclableFillLevel = Math.min(Math.round((totalCounts['Recyclable'] / 100) * 100), 100);
           
-          document.getElementById('nonbio-fill-level').textContent = `${nonBioFillLevel}%`;
-          document.getElementById('recyclable-fill-level').textContent = `${recyclableFillLevel}%`;
+          // Show latest non-bio reading value and timestamp
+          if (data.non_bio_alert && data.non_bio_alert.length > 0) {
+            const nonBio = data.non_bio_alert[0];
+            document.getElementById('nonbio-fill-level').textContent = nonBio.reading_value + '%';
+            document.getElementById('nonbio-timestamp').textContent = nonBio.timestamp;
+          } else {
+            document.getElementById('nonbio-fill-level').textContent = 'No Data';
+            document.getElementById('nonbio-timestamp').textContent = '';
+          }
+          // Show latest recyclable reading value and timestamp
+          if (data.recyclable_alert && data.recyclable_alert.length > 0) {
+            const recyclable = data.recyclable_alert[0];
+            document.getElementById('recyclable-fill-level').textContent = recyclable.reading_value + '%';
+            document.getElementById('recyclable-timestamp').textContent = recyclable.timestamp;
+          } else {
+            document.getElementById('recyclable-fill-level').textContent = 'No Data';
+            document.getElementById('recyclable-timestamp').textContent = '';
+          }
+
+          // Check for toxic alert and fill level thresholds
+          if (data.toxic_alert && data.toxic_alert.length > 0) {
+            // Use the first toxic alert (latest)
+            const toxic = data.toxic_alert[0];
+            document.getElementById('toxic-status').textContent = toxic.reading_value;
+            document.getElementById('toxic-timestamp').textContent = toxic.timestamp;
+            
+            // Send email for toxic alerts
+            if (toxic.reading_value === "Above Normal" || toxic.reading_value === "Toxic") {
+              fetch('/api/send-toxic-alert', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  toxic_status: toxic.reading_value
+                })
+              });
+            }
+          } else {
+            document.getElementById('toxic-status').textContent = 'No Data';
+            document.getElementById('toxic-timestamp').textContent = '';
+          }
+
+          // Check fill level thresholds and send emails
+          const thresholds = [80, 90, 100];
+          thresholds.forEach(threshold => {
+            if (nonBioFillLevel >= threshold) {
+              fetch('/api/send-fill-alert', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  category: 'Non-Biodegradable',
+                  level: nonBioFillLevel
+                })
+              });
+            }
+            
+            if (recyclableFillLevel >= threshold) {
+              fetch('/api/send-fill-alert', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  category: 'Recyclable',
+                  level: recyclableFillLevel
+                })
+              });
+            }
+          });
         });
     }
 
@@ -261,6 +331,7 @@
     updateDetectedUpdateCard();
     // Auto-refresh every 1 minute
     setInterval(updateDetectedUpdateCard, 60000);
+
   });
 </script>
 {% endblock extra_js %}

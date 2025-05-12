@@ -290,4 +290,90 @@ def fetch_last_detection_per_sensor():
         except Error as e:
             print(f"Error fetching last detection per sensor: {e}")
             return result
-    return result 
+    return result
+
+def fetch_latest_toxic_status():
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            sql = """
+                SELECT sensor_id, reading_value, timestamp
+                FROM sensor
+                WHERE sensor_id = 1
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """
+            cursor.execute(sql)
+            toxic_row = cursor.fetchone()
+            cursor.close()
+            connection.close()
+            if toxic_row:
+                return [toxic_row]
+            return []
+        except Error as e:
+            print(f"Error fetching latest toxic status: {e}")
+            return None
+    return None
+
+def fetch_latest_non_bio_status():
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            sql = """
+                SELECT sensor_id, reading_value, timestamp
+                FROM sensor
+                WHERE sensor_id = 2
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """
+            cursor.execute(sql)
+            non_bio_row = cursor.fetchone()
+            cursor.close()
+            connection.close()
+            if non_bio_row:
+                # Convert reading_value to int if it contains '%'
+                rv = non_bio_row['reading_value']
+                if isinstance(rv, str) and rv.endswith('%'):
+                    try:
+                        non_bio_row['reading_value'] = int(rv.replace('%', '').strip())
+                    except Exception:
+                        pass
+                return [non_bio_row]
+            return []
+        except Error as e:
+            print(f"Error fetching latest non-bio status: {e}")
+            return None
+    return None
+
+def fetch_latest_recyclable_status():
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            sql = """
+                SELECT sensor_id, reading_value, timestamp
+                FROM sensor
+                WHERE sensor_id = 3
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """
+            cursor.execute(sql)
+            recyclable_row = cursor.fetchone()
+            cursor.close()
+            connection.close()
+            if recyclable_row:
+                # Convert reading_value to int if it contains '%'
+                rv = recyclable_row['reading_value']
+                if isinstance(rv, str) and rv.endswith('%'):
+                    try:
+                        recyclable_row['reading_value'] = int(rv.replace('%', '').strip())
+                    except Exception:
+                        pass
+                return [recyclable_row]
+            return []
+        except Error as e:
+            print(f"Error fetching latest recyclable status: {e}")
+            return None
+    return None 

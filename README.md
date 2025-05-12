@@ -1,66 +1,71 @@
-# TrashTech Flask Material Dashboard
+# Flask Trash Can Monitoring System
 
-A web dashboard for real-time monitoring of smart trash can sensors, built with Flask and Material Dashboard.
+A web-based dashboard for real-time monitoring of trash can fill levels, toxicity, and classification status, with automated email alerts for critical events.
 
 ## Features
-- Live monitoring of trash fill levels, toxicity, and classification status
-- Real-time charts for trash counts and classification distribution
-- Latest detection and update cards
-- Auto-refresh for sensor data and dashboard cards
-- MySQL database integration
+- Live dashboard for Recyclable, Non-Biodegradable, and Biodegradable bins
+- Toxic alert status monitoring
+- Automated email notifications for:
+  - Toxic status: "ABOVE NORMAL" or "TOXIC"
+  - Non-Biodegradable and Recyclable fill levels: 80%, 90%, 100%
+- Duplicate prevention: Only one email per threshold until the value changes
 
 ## Setup Instructions
 
-### 1. Clone the repository
+### 1. Clone the Repository
 ```bash
 git clone <your-repo-url>
 cd flask-material-dashboard
 ```
 
-### 2. Install dependencies
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure the database
-- Ensure you have a MySQL server running.
-- Create a database (e.g., `trashtechdb`) and update your connection settings in `backend/routes/connection.py`.
-- The `trash` table should have at least: `id`, `category`, `timestamp` columns.
+### 3. Configure Environment Variables
+Create a `.env` file in the project root with the following content:
+```ini
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=your.email@gmail.com
+MAIL_PASSWORD=your_app_password
+MAIL_DEFAULT_SENDER=your.email@gmail.com
+ALERT_RECIPIENTS=recipient1@email.com,recipient2@email.com
+```
+- For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) (not your regular password).
+- `ALERT_RECIPIENTS` is a comma-separated list of emails to receive alerts.
 
-### 4. Run the Flask app
+### 4. Set Up the Database
+- Ensure your MySQL database is running and configured in `backend/config.py` or via environment variables.
+- The `sensor` table should have columns: `sensor_id`, `reading_value`, `timestamp`.
+- The `trash` table should have columns: `category`, `timestamp`.
+
+### 5. Run the Application
 ```bash
 flask run
 ```
-Or:
+Or, if you use a custom entry point:
 ```bash
 python app.py
 ```
 
-### 5. Access the dashboard
-Open your browser and go to: [http://localhost:5000](http://localhost:5000)
-
-## Dashboard Overview
-- **Toxic Alert:** Shows current status for Biodegradable bin.
-- **Fill Levels:** Shows fill percentage for Non-Biodegradable and Recyclable bins.
-- **Latest Classification:** Shows the most recent trash detection and timestamp.
-- **Detected Update for Sensors:** Shows the latest update timestamp for all sensors (auto-refreshes every 1 minute).
-- **Charts:**
-  - Bar chart for overall trash counts (Recyclable, Biodegradable, Non-Biodegradable)
-  - Pie chart for classification distribution
-
-## Auto-Refresh
-- The "Detected Update for Sensors" card auto-refreshes every 1 minute.
-- Charts and other dashboard data auto-refresh every 5 minutes.
-
-## Troubleshooting
-- **Database connection errors:** Check your MySQL credentials and that the server is running.
-- **No data showing:** Ensure your `trash` table has data and category names match exactly: `Recyclable`, `Biodegradable`, `Non-Biodegradable`.
-- **Frontend not updating:** Open the browser console (F12) to check for JavaScript errors or failed API requests.
-- **Backend logs:** Check your terminal for Flask server output and errors.
+## Usage
+- Access the dashboard at [http://localhost:5000](http://localhost:5000)
+- The dashboard auto-refreshes and triggers email alerts based on:
+  - Toxic status: "ABOVE NORMAL" or "TOXIC"
+  - Non-Biodegradable/Recyclable fill levels: 80, 90, or 100 (as int or string, e.g., `80` or `"80%"`)
+- Only one email is sent per threshold until the value changes.
 
 ## Customization
-- To change refresh intervals, edit the JavaScript in `frontend/templates/pages/index.html`.
-- To add more features or cards, edit the HTML and backend routes as needed.
+- To change alert thresholds or add more bins, edit the logic in `home/routes.py`.
+- To customize email content, edit `home/utils/email_notifications.py`.
+
+## Troubleshooting
+- Check your Flask server logs for debug output and errors.
+- Ensure your email credentials and recipients are correct in `.env`.
+- For Gmail, ensure you are using an App Password and have enabled "Less secure app access" if needed.
 
 ## License
 MIT

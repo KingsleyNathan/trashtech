@@ -57,3 +57,10 @@
     }
   }
 }
+
+.dashboard-card {
+  min-height: 120px; /* Adjust as needed for your design */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

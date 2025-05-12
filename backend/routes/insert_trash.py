@@ -1,4 +1,4 @@
-from connection import get_db_connection
+from backend.routes.connection import get_db_connection
 from mysql.connector import Error
 
 def insert_test_trash(category, timestamp):
