@@ -1,30 +1,31 @@
 import mysql.connector
 from mysql.connector import Error
-import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from backend.config import DB_CONFIG
 
 def get_db_connection():
     """
-    Create and return a database connection using environment variables
+    Creates and returns a database connection
+    Returns:
+        connection: MySQL database connection object
     """
     try:
         connection = mysql.connector.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', ''),
-            database=os.getenv('DB_NAME', 'trashtech_db')
+            host=DB_CONFIG['host'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            database=DB_CONFIG['database']
         )
-        return connection
+        if connection.is_connected():
+            return connection
     except Error as e:
         print(f"Error connecting to MySQL database: {e}")
         return None
 
 def close_db_connection(connection):
     """
-    Safely close a database connection
+    Closes the database connection
+    Args:
+        connection: MySQL database connection object
     """
     if connection and connection.is_connected():
         connection.close() 

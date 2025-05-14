@@ -376,4 +376,40 @@ def fetch_latest_recyclable_status():
         except Error as e:
             print(f"Error fetching latest recyclable status: {e}")
             return None
+    return None
+
+def insert_test_trash(category, timestamp):
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            sql = "INSERT INTO trash (category, timestamp) VALUES (%s, %s)"
+            cursor.execute(sql, (category, timestamp))
+            connection.commit()
+            print(f"Inserted row with category='{category}', timestamp='{timestamp}'")
+            cursor.close()
+            connection.close()
+            return True
+        except Error as e:
+            print(f"Error inserting into trash table: {e}")
+            return False
+    return False
+
+def create_indexes():
+    """Create necessary indexes for better query performance"""
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            # Create indexes for commonly queried columns
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_trash_category ON trash(category)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_trash_timestamp ON trash(timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_trash_category_timestamp ON trash(category, timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_sensor_id ON sensor(sensor_id)")
+            connection.commit()
+            cursor.close()
+            connection.close()
+            print("Indexes created successfully")
+        except Error as e:
+            print(f"Error creating indexes: {e}")
     return None 
