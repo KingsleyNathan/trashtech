@@ -1,0 +1,104 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Documentation{% endblock title %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header p-3">
+          <h5 class="mb-0">TrashTech Dashboard Documentation</h5>
+        </div>
+        <div class="card-body p-3">
+          <div class="markdown-content">
+            <h2>Overview</h2>
+            <p>The TrashTech Dashboard is a real-time monitoring system for smart trash cans, providing insights into fill levels, toxicity status, and waste classification.</p>
+
+            <h2>Features</h2>
+            <ul>
+              <li>Real-time monitoring of trash fill levels</li>
+              <li>Toxic alert status tracking</li>
+              <li>Waste classification distribution</li>
+              <li>Email notifications for critical events</li>
+            </ul>
+
+            <h2>Alert Thresholds</h2>
+            <ul>
+              <li>Non-Biodegradable Fill Level: 90%</li>
+              <li>Recyclable Fill Level: 90%</li>
+              <li>Toxic Alert: "ABOVE NORMAL" or "TOXIC" status</li>
+            </ul>
+
+            <h2>Email Notifications</h2>
+            <p>The system sends email alerts for:</p>
+            <ul>
+              <li>Fill levels reaching or exceeding 90%</li>
+              <li>Toxic status changes to "ABOVE NORMAL" or "TOXIC"</li>
+            </ul>
+
+            <h2>Setup Instructions</h2>
+            <ol>
+              <li>Clone the repository</li>
+              <li>Install dependencies: <code>pip install -r requirements.txt</code></li>
+              <li>Configure environment variables in <code>.env</code> file</li>
+              <li>Run the application: <code>python app.py</code></li>
+            </ol>
+
+            <h2>Environment Variables</h2>
+            <pre>
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=your.email@gmail.com
+MAIL_PASSWORD=your_app_password
+MAIL_DEFAULT_SENDER=your.email@gmail.com
+ALERT_RECIPIENTS=recipient1@email.com,recipient2@email.com
+            </pre>
+
+            <h2>API Endpoints</h2>
+            <ul>
+              <li><code>/api/dashboard-data</code> - Get real-time dashboard data</li>
+              <li><code>/api/send-toxic-alert</code> - Send toxic alert notifications</li>
+              <li><code>/api/send-fill-alert</code> - Send fill level notifications</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_css %}
+<style>
+  .markdown-content {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  .markdown-content h2 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+  .markdown-content ul, .markdown-content ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+  }
+  .markdown-content li {
+    margin-bottom: 0.5rem;
+  }
+  .markdown-content pre {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+  }
+  .markdown-content code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+  }
+</style>
+{% endblock extra_css %} 

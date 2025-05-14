@@ -300,7 +300,7 @@ def fetch_latest_toxic_status():
             sql = """
                 SELECT sensor_id, reading_value, timestamp
                 FROM sensor
-                WHERE sensor_id = 1
+                WHERE sensor_id = 3
                 ORDER BY timestamp DESC
                 LIMIT 1
             """
@@ -324,7 +324,7 @@ def fetch_latest_non_bio_status():
             sql = """
                 SELECT sensor_id, reading_value, timestamp
                 FROM sensor
-                WHERE sensor_id = 2
+                WHERE sensor_id = 1
                 ORDER BY timestamp DESC
                 LIMIT 1
             """
@@ -355,7 +355,7 @@ def fetch_latest_recyclable_status():
             sql = """
                 SELECT sensor_id, reading_value, timestamp
                 FROM sensor
-                WHERE sensor_id = 3
+                WHERE sensor_id = 2
                 ORDER BY timestamp DESC
                 LIMIT 1
             """

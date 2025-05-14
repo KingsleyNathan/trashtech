@@ -37,7 +37,7 @@
           <div class="d-flex justify-content-between">
             <div>
               <p class="text-sm mb-0 text-capitalize">Non-Biodegradable Fill Level</p>
-              <h4 class="mb-0" id="nonbio-fill-level">45%</h4>
+              <h4 class="mb-0" id="nonbio-fill-level">LOADING...</h4>
               <small id="nonbio-timestamp"></small>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-warning shadow text-center border-radius-lg">
@@ -55,7 +55,7 @@
           <div class="d-flex justify-content-between">
             <div>
               <p class="text-sm mb-0 text-capitalize">Recyclable Fill Level</p>
-              <h4 class="mb-0" id="recyclable-fill-level">30%</h4>
+              <h4 class="mb-0" id="recyclable-fill-level">LOADING...</h4>
               <small id="recyclable-timestamp"></small>
             </div>
             <div class="icon icon-md icon-shape bg-gradient-info shadow text-center border-radius-lg">
@@ -139,6 +139,22 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
+  // Track last sent alerts using localStorage
+  function getLastSentAlerts() {
+    const stored = localStorage.getItem('lastSentAlerts');
+    return stored ? JSON.parse(stored) : {
+      toxic: null,
+      nonbio: null,
+      recyclable: null
+    };
+  }
+
+  function updateLastSentAlert(type, value) {
+    const alerts = getLastSentAlerts();
+    alerts[type] = value;
+    localStorage.setItem('lastSentAlerts', JSON.stringify(alerts));
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     // Initialize charts
     const trashCountsChart = new ApexCharts(document.querySelector("#trash-counts-chart"), {
@@ -151,7 +167,7 @@
       },
       series: [{
         name: 'Count',
-        data: []
+        data: [0, 0, 0]  // Initialize with zeros
       }],
       xaxis: { 
         categories: ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
@@ -175,7 +191,7 @@
         type: 'pie',
         height: 350
       },
-      series: [],
+      series: [0, 0, 0],  // Initialize with zeros
       labels: expectedCategories,
       colors: ['#42a5f5', '#66bb6a', '#ffa726'],
       legend: {
@@ -189,33 +205,45 @@
       fetch('/api/dashboard-data')
         .then(response => response.json())
         .then(data => {
+          console.log('Received dashboard data:', data);  // Debug log
+
           // Calculate total counts for each category
           const totalCounts = {
             'Recyclable': 0,
             'Biodegradable': 0,
             'Non-Biodegradable': 0
           };
-          data.classification_distribution.forEach(item => {
-            totalCounts[item.category] = item.count;
-          });
-          trashCountsChart.updateSeries([{
-            name: 'Count',
-            data: [
-              totalCounts['Recyclable'],
-              totalCounts['Biodegradable'],
-              totalCounts['Non-Biodegradable']
-            ]
-          }]);
 
-          // Update classification distribution chart
-          classificationChart.updateSeries([
+          if (data.classification_distribution && Array.isArray(data.classification_distribution)) {
+            data.classification_distribution.forEach(item => {
+              if (item.category && typeof item.count === 'number') {
+                totalCounts[item.category] = item.count;
+              }
+            });
+          }
+
+          console.log('Calculated total counts:', totalCounts);  // Debug log
+
+          // Update trash counts chart
+          const trashCountsData = [
             totalCounts['Recyclable'],
             totalCounts['Biodegradable'],
             totalCounts['Non-Biodegradable']
-          ]);
-          classificationChart.updateOptions({
-            labels: expectedCategories
-          });
+          ];
+          console.log('Updating trash counts chart with:', trashCountsData);  // Debug log
+          trashCountsChart.updateSeries([{
+            name: 'Count',
+            data: trashCountsData
+          }]);
+
+          // Update classification distribution chart
+          const distributionData = [
+            totalCounts['Recyclable'],
+            totalCounts['Biodegradable'],
+            totalCounts['Non-Biodegradable']
+          ];
+          console.log('Updating classification chart with:', distributionData);  // Debug log
+          classificationChart.updateSeries(distributionData);
 
           // Update only the Latest Detection card dynamically
           const latestDetectionCard = document.getElementById('latest-detection-card');
@@ -253,27 +281,55 @@
             document.getElementById('toxic-status').textContent = toxic.reading_value;
             document.getElementById('toxic-timestamp').textContent = toxic.timestamp;
             
-            // Send email for toxic alerts
-            if (toxic.reading_value === "Above Normal" || toxic.reading_value === "Toxic") {
+            // Send email for toxic alerts - case insensitive check and prevent duplicates
+            const toxicStatus = toxic.reading_value.toUpperCase();
+            const lastSentAlerts = getLastSentAlerts();
+            console.log('Toxic Alert Debug:', {
+              currentStatus: toxicStatus,
+              lastSent: lastSentAlerts.toxic,
+              shouldSend: (toxicStatus === "ABOVE NORMAL" || toxicStatus === "TOXIC") && lastSentAlerts.toxic !== toxicStatus
+            });
+            
+            if ((toxicStatus === "ABOVE NORMAL" || toxicStatus === "TOXIC") && lastSentAlerts.toxic !== toxicStatus) {
+              console.log('Sending toxic alert email for:', toxicStatus);
               fetch('/api/send-toxic-alert', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  toxic_status: toxic.reading_value
+                  toxic_status: toxicStatus
                 })
+              }).then(response => response.json())
+                .then(data => {
+                  if (data.status === 'success') {
+                    console.log('Toxic alert email sent, updating last sent status');
+                    updateLastSentAlert('toxic', toxicStatus);
+                  } else {
+                    console.error('Failed to send toxic alert:', data.message);
+                  }
+                })
+                .catch(error => {
+                  console.error('Error sending toxic alert:', error);
+                });
+            } else {
+              console.log('Not sending toxic alert because:', {
+                isToxicOrAboveNormal: toxicStatus === "ABOVE NORMAL" || toxicStatus === "TOXIC",
+                isDifferentFromLast: lastSentAlerts.toxic !== toxicStatus
               });
             }
           } else {
             document.getElementById('toxic-status').textContent = 'No Data';
             document.getElementById('toxic-timestamp').textContent = '';
+            updateLastSentAlert('toxic', null);
           }
 
-          // Check fill level thresholds and send emails
-          const thresholds = [80, 90, 100];
-          thresholds.forEach(threshold => {
-            if (nonBioFillLevel >= threshold) {
+          // Check fill level thresholds and send emails based on actual sensor readings
+          if (data.non_bio_alert && data.non_bio_alert.length > 0) {
+            const nonBio = data.non_bio_alert[0];
+            const nonBioLevel = parseInt(nonBio.reading_value);
+            const lastSentAlerts = getLastSentAlerts();
+            if (nonBioLevel >= 80 && lastSentAlerts.nonbio !== nonBioLevel) {
               fetch('/api/send-fill-alert', {
                 method: 'POST',
                 headers: {
@@ -281,12 +337,21 @@
                 },
                 body: JSON.stringify({
                   category: 'Non-Biodegradable',
-                  level: nonBioFillLevel
+                  level: nonBioLevel
                 })
+              }).then(() => {
+                updateLastSentAlert('nonbio', nonBioLevel);
               });
             }
-            
-            if (recyclableFillLevel >= threshold) {
+          } else {
+            updateLastSentAlert('nonbio', null);
+          }
+          
+          if (data.recyclable_alert && data.recyclable_alert.length > 0) {
+            const recyclable = data.recyclable_alert[0];
+            const recyclableLevel = parseInt(recyclable.reading_value);
+            const lastSentAlerts = getLastSentAlerts();
+            if (recyclableLevel >= 80 && lastSentAlerts.recyclable !== recyclableLevel) {
               fetch('/api/send-fill-alert', {
                 method: 'POST',
                 headers: {
@@ -294,11 +359,15 @@
                 },
                 body: JSON.stringify({
                   category: 'Recyclable',
-                  level: recyclableFillLevel
+                  level: recyclableLevel
                 })
+              }).then(() => {
+                updateLastSentAlert('recyclable', recyclableLevel);
               });
             }
-          });
+          } else {
+            updateLastSentAlert('recyclable', null);
+          }
         });
     }
 
