@@ -412,4 +412,34 @@ def create_indexes():
             print("Indexes created successfully")
         except Error as e:
             print(f"Error creating indexes: {e}")
-    return None 
+    return None
+
+def fetch_toxic_alert_history(hours=24):
+    """
+    Fetch toxic alert history for the specified number of hours
+    """
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            sql = """
+                SELECT sensor_id, reading_value, timestamp
+                FROM sensor
+                WHERE sensor_id = 3
+                AND timestamp >= DATE_SUB(NOW(), INTERVAL %s HOUR)
+                ORDER BY timestamp ASC
+            """
+            print(f"Executing toxic alert history query with hours={hours}")
+            cursor.execute(sql, (hours,))
+            rows = cursor.fetchall()
+            print(f"Found {len(rows)} toxic alert history records")
+            if rows:
+                print(f"First record: {rows[0]}")
+                print(f"Last record: {rows[-1]}")
+            cursor.close()
+            connection.close()
+            return rows
+        except Error as e:
+            print(f"Error fetching toxic alert history: {e}")
+            return []
+    return [] 

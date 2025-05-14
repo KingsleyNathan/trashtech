@@ -1,0 +1,83 @@
+/* Dashboard Cards */
+.dashboard-card {
+  transition: transform 0.2s ease-in-out;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+}
+
+/* Chart Containers */
+.card {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: none;
+}
+
+.card-header {
+  background-color: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  padding: 1rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+/* Fill Level Trend Chart */
+#fill-level-trend-chart {
+  min-height: 350px;
+}
+
+/* Alert Status Colors */
+.bg-gradient-danger {
+  background: linear-gradient(45deg, #ff5252, #ff1744);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(45deg, #ffa726, #ff6f00);
+}
+
+.bg-gradient-info {
+  background: linear-gradient(45deg, #42a5f5, #1976d2);
+}
+
+/* Icons */
+.icon-shape {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+}
+
+.icon-shape i {
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+/* Text Styles */
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .card {
+    margin-bottom: 1rem;
+  }
+  
+  .icon-shape {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .icon-shape i {
+    font-size: 1.25rem;
+  }
+} 

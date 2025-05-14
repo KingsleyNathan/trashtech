@@ -12,7 +12,8 @@ from backend.routes.fetch_trash import (
     fetch_last_detection_per_sensor,
     fetch_latest_toxic_status,
     fetch_latest_non_bio_status,
-    fetch_latest_recyclable_status
+    fetch_latest_recyclable_status,
+    fetch_toxic_alert_history
 )
 from home.utils.email_notifications import send_email, get_toxic_alert_email, get_fill_level_email
 from flask import current_app
@@ -138,12 +139,15 @@ def dashboard_data():
     toxic_alert = fetch_latest_toxic_status()
     non_bio_alert = fetch_latest_non_bio_status()
     recyclable_alert = fetch_latest_recyclable_status()
+    toxic_alert_history = fetch_toxic_alert_history(24)  # Get last 24 hours of data
 
     # Log all alert data for debugging
     logger.info("Current alert data:")
     logger.info(f"Toxic alert: {toxic_alert}")
     logger.info(f"Non-bio alert: {non_bio_alert}")
     logger.info(f"Recyclable alert: {recyclable_alert}")
+    logger.info(f"Toxic alert history: {toxic_alert_history}")
+    logger.info(f"Toxic alert history length: {len(toxic_alert_history) if toxic_alert_history else 0}")
 
     # Toxic alert email logic
     if toxic_alert and len(toxic_alert) > 0:
@@ -210,7 +214,8 @@ def dashboard_data():
         'last_detection_per_sensor': last_detection_per_sensor,
         'toxic_alert': toxic_alert,
         'non_bio_alert': non_bio_alert,
-        'recyclable_alert': recyclable_alert
+        'recyclable_alert': recyclable_alert,
+        'toxic_alert_history': toxic_alert_history
     })
 
 # Trash stats route
@@ -346,3 +351,53 @@ def send_fill_alert():
     except Exception as e:
         logger.error(f"Error in send_fill_alert: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@home_blueprint.route('/api/fill-level-history')
+def get_fill_level_history():
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor(dictionary=True)
+            
+            # Get the last 24 hours of data
+            sql = """
+                SELECT 
+                    timestamp,
+                    CASE 
+                        WHEN sensor_id = '002' THEN 'Non-Biodegradable'
+                        WHEN sensor_id = '001' THEN 'Recyclable'
+                    END as category,
+                    CAST(REPLACE(reading_value, '%', '') AS DECIMAL(5,2)) as fill_level
+                FROM sensor
+                WHERE sensor_id IN ('001', '002')
+                AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                ORDER BY timestamp ASC
+            """
+            cursor.execute(sql)
+            data = cursor.fetchall()
+            cursor.close()
+            connection.close()
+
+            # Format the data for the chart
+            formatted_data = {
+                'Non-Biodegradable': [],
+                'Recyclable': []
+            }
+            
+            for row in data:
+                timestamp = int(datetime.strptime(str(row['timestamp']), '%Y-%m-%d %H:%M:%S').timestamp() * 1000)
+                formatted_data[row['category']].append({
+                    'x': timestamp,
+                    'y': float(row['fill_level'])
+                })
+
+            return jsonify({
+                'status': 'success',
+                'data': formatted_data
+            })
+    except Exception as e:
+        logger.error(f"Error fetching fill level history: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
