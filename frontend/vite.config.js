@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => {
             },
         },
         build: {
-            outDir: "static",
-            emptyOutDir: false,
+            outDir: "dist",
+            emptyOutDir: true,
             rollupOptions: {
                 input: scssFiles,
                 output: {
@@ -31,5 +31,9 @@ export default defineConfig(({ mode }) => {
                 },
             },
         },
+        server: {
+            port: 3000,
+            host: true
+        }
     };
 }); 

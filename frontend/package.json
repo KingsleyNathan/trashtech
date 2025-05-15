@@ -14,8 +14,9 @@
     "perfect-scrollbar": "^1.5.5"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
+    "autoprefixer": "^10.4.16",
+    "cssnano": "^7.0.7",
     "postcss": "^8.4.31",
-    "autoprefixer": "^10.4.16"
+    "vite": "^5.0.0"
   }
 }
