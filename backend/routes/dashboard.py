@@ -13,9 +13,13 @@ from backend.routes.fetch_trash import (
     fetch_latest_toxic_status,
     fetch_latest_non_bio_status,
     fetch_latest_recyclable_status,
-    fetch_toxic_alert_history
+    fetch_toxic_alert_history,
+    is_valid_timestamp,
+    can_send_email,
+    update_last_email_data,
+    reset_email_sent_flag
 )
-from home.utils.email_notifications import send_email, get_toxic_alert_email, get_fill_level_email
+from backend.utils.email_notifications import send_email, get_toxic_alert_email, get_fill_level_email
 from flask import current_app
 from datetime import datetime, timedelta
 import threading
@@ -28,81 +32,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 home_blueprint = Blueprint('home_blueprint', __name__)
-
-# Global lock for email sending
-email_lock = threading.Lock()
-
-# Store the last email sent times and values (in-memory, resets on server restart)
-last_email_data = {
-    'toxic': {'time': None, 'value': None, 'sent': False},
-    'nonbio': {'time': None, 'value': None, 'sent': False},
-    'recyclable': {'time': None, 'value': None, 'sent': False}
-}
-
-# Minimum time between emails (in minutes)
-EMAIL_INTERVALS = {
-    'toxic': 30,  # 30 minutes between toxic alerts
-    'nonbio': 60,  # 1 hour between non-bio fill alerts
-    'recyclable': 60  # 1 hour between recyclable fill alerts
-}
-
-def is_valid_timestamp(timestamp):
-    """Check if the timestamp is valid (not in the future and not too old)"""
-    try:
-        # Convert string timestamp to datetime if needed
-        if isinstance(timestamp, str):
-            timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-        
-        now = datetime.now()
-        # Check if timestamp is not in the future
-        if timestamp > now:
-            return False
-        # Check if timestamp is not too old (e.g., not older than 24 hours)
-        if now - timestamp > timedelta(hours=24):
-            return False
-        return True
-    except Exception as e:
-        print(f"Error validating timestamp: {e}")
-        return False
-
-def can_send_email(alert_type, current_value):
-    """Check if enough time has passed and the value has changed since the last email"""
-    with email_lock:
-        last_data = last_email_data.get(alert_type)
-        if last_data['time'] is None or last_data['value'] is None:
-            return True
-        
-        # If we've already sent an email for this exact value, don't send again
-        if last_data['value'] == current_value and last_data['sent']:
-            logger.info(f"Preventing duplicate email for {alert_type} with value {current_value}")
-            return False
-        
-        # Check if enough time has passed
-        interval = EMAIL_INTERVALS.get(alert_type, 60)  # Default to 60 minutes
-        time_since_last = datetime.now() - last_data['time']
-        time_check = time_since_last.total_seconds() >= (interval * 60)
-        
-        # Check if the value has changed
-        value_check = last_data['value'] != current_value
-        
-        return time_check or value_check
-
-def update_last_email_data(alert_type, value):
-    """Update the last email sent time and value for a specific alert type"""
-    with email_lock:
-        last_email_data[alert_type] = {
-            'time': datetime.now(),
-            'value': value,
-            'sent': True
-        }
-        logger.info(f"Updated last email data for {alert_type}: value={value}")
-
-def reset_email_sent_flag(alert_type):
-    """Reset the sent flag for an alert type"""
-    with email_lock:
-        if alert_type in last_email_data:
-            last_email_data[alert_type]['sent'] = False
-            logger.info(f"Reset sent flag for {alert_type}")
 
 @home_blueprint.route('/')
 def index():
@@ -127,10 +56,6 @@ def documentation():
 
 @home_blueprint.route('/api/dashboard-data')
 def dashboard_data():
-    # Reset all email sent flags at the start of each request
-    for alert_type in last_email_data:
-        reset_email_sent_flag(alert_type)
-
     trash_counts = fetch_trash_counts()
     classification_distribution = fetch_classification_distribution()
     latest_detection = fetch_latest_detection()
@@ -139,7 +64,7 @@ def dashboard_data():
     toxic_alert = fetch_latest_toxic_status()
     non_bio_alert = fetch_latest_non_bio_status()
     recyclable_alert = fetch_latest_recyclable_status()
-    toxic_alert_history = fetch_toxic_alert_history(24)  # Get last 24 hours of data
+    toxic_alert_history = fetch_toxic_alert_history()
 
     # Log all alert data for debugging
     logger.info("Current alert data:")
@@ -155,12 +80,15 @@ def dashboard_data():
         toxic_status = toxic_data['reading_value']
         logger.info(f"Processing toxic alert: {toxic_status}")
         
+        # Only send email if status is ABOVE NORMAL or TOXIC and it's new data
         if toxic_status in ["ABOVE NORMAL", "TOXIC"] and can_send_email('toxic', toxic_status):
             subject, body = get_toxic_alert_email(toxic_status)
             recipients = current_app.config['ALERT_RECIPIENTS']
             if send_email(subject, body, recipients):
                 update_last_email_data('toxic', toxic_status)
-                logger.info(f"Sent toxic alert email for status: {toxic_status}")
+                logger.info(f"Sent toxic alert email for new status: {toxic_status}")
+            else:
+                logger.error(f"Failed to send toxic alert email for status: {toxic_status}")
 
     # Non-Biodegradable fill level alert logic
     if non_bio_alert and len(non_bio_alert) > 0:
@@ -334,7 +262,7 @@ def send_fill_alert():
             logger.info(f"Throttling email for {category} at {level}%")
             return jsonify({
                 'status': 'throttled',
-                'message': f'Email already sent recently for this level. Please wait {EMAIL_INTERVALS[alert_type]} minutes between alerts.'
+                'message': f'Email already sent recently for this level. Please wait {{EMAIL_INTERVALS[alert_type]}} minutes between alerts.'
             }), 429
         
         subject, body = get_fill_level_email(category, level)
@@ -358,19 +286,16 @@ def get_fill_level_history():
         connection = get_db_connection()
         if connection:
             cursor = connection.cursor(dictionary=True)
-            
-            # Get the last 24 hours of data
             sql = """
                 SELECT 
                     timestamp,
                     CASE 
-                        WHEN sensor_id = '002' THEN 'Non-Biodegradable'
-                        WHEN sensor_id = '001' THEN 'Recyclable'
+                        WHEN sensor_id = 1 THEN 'Non-biodegradable'
+                        WHEN sensor_id = 2 THEN 'Recyclable'
                     END as category,
                     CAST(REPLACE(reading_value, '%', '') AS DECIMAL(5,2)) as fill_level
                 FROM sensor
-                WHERE sensor_id IN ('001', '002')
-                AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                WHERE sensor_id IN (1, 2)
                 ORDER BY timestamp ASC
             """
             cursor.execute(sql)
@@ -380,7 +305,7 @@ def get_fill_level_history():
 
             # Format the data for the chart
             formatted_data = {
-                'Non-Biodegradable': [],
+                'Non-biodegradable': [],
                 'Recyclable': []
             }
             
@@ -400,4 +325,4 @@ def get_fill_level_history():
         return jsonify({
             'status': 'error',
             'message': str(e)
-        }), 500
+        }), 500 

@@ -1,6 +1,25 @@
 from backend.routes.connection import get_db_connection
 from mysql.connector import Error
 from datetime import datetime, timedelta
+import threading
+import logging
+
+# Global lock for email sending
+email_lock = threading.Lock()
+
+# Store the last email sent times and values (in-memory, resets on server restart)
+last_email_data = {
+    'toxic': {'time': None, 'value': None, 'sent': False},
+    'nonbio': {'time': None, 'value': None, 'sent': False},
+    'recyclable': {'time': None, 'value': None, 'sent': False}
+}
+
+# Minimum time between emails (in minutes)
+EMAIL_INTERVALS = {
+    'toxic': 30,  # 30 minutes between toxic alerts
+    'nonbio': 60,  # 1 hour between non-bio fill alerts
+    'recyclable': 60  # 1 hour between recyclable fill alerts
+}
 
 def fetch_trash_by_category_and_timestamp(category, timestamp):
     connection = get_db_connection()
@@ -193,7 +212,7 @@ def fetch_sensor_status():
 
 def fetch_trash_counts():
     connection = get_db_connection()
-    categories = ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
+    categories = ['Recyclable', 'Biodegradable', 'Non-biodegradable']
     result = {cat: 0 for cat in categories}
     if connection:
         try:
@@ -203,16 +222,20 @@ def fetch_trash_counts():
                     category,
                     COUNT(*) as count
                 FROM trash 
-                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
+                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
                 GROUP BY category
             """
+            print("Executing trash counts query:", sql)  # Debug log
             cursor.execute(sql)
             counts = cursor.fetchall()
+            print("Raw counts from database:", counts)  # Debug log
             cursor.close()
             connection.close()
             for row in counts:
                 result[row['category']] = row['count']
-            return [{'category': cat, 'count': result[cat]} for cat in categories]
+            final_result = [{'category': cat, 'count': result[cat]} for cat in categories]
+            print("Final trash counts result:", final_result)  # Debug log
+            return final_result
         except Error as e:
             print(f"Error fetching trash counts: {e}")
             return [{'category': cat, 'count': 0} for cat in categories]
@@ -220,7 +243,7 @@ def fetch_trash_counts():
 
 def fetch_classification_distribution():
     connection = get_db_connection()
-    categories = ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
+    categories = ['Recyclable', 'Biodegradable', 'Non-biodegradable']
     result = {cat: 0 for cat in categories}
     if connection:
         try:
@@ -230,16 +253,20 @@ def fetch_classification_distribution():
                     category,
                     COUNT(*) as count
                 FROM trash 
-                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
+                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
                 GROUP BY category
             """
+            print("Executing classification distribution query:", sql)  # Debug log
             cursor.execute(sql)
             distribution = cursor.fetchall()
+            print("Raw distribution from database:", distribution)  # Debug log
             cursor.close()
             connection.close()
             for row in distribution:
                 result[row['category']] = row['count']
-            return [{'category': cat, 'count': result[cat]} for cat in categories]
+            final_result = [{'category': cat, 'count': result[cat]} for cat in categories]
+            print("Final classification distribution result:", final_result)  # Debug log
+            return final_result
         except Error as e:
             print(f"Error fetching classification distribution: {e}")
             return [{'category': cat, 'count': 0} for cat in categories]
@@ -414,9 +441,9 @@ def create_indexes():
             print(f"Error creating indexes: {e}")
     return None
 
-def fetch_toxic_alert_history(hours=24):
+def fetch_toxic_alert_history(hours=None):
     """
-    Fetch toxic alert history for the specified number of hours
+    Fetch all toxic alert history data
     """
     connection = get_db_connection()
     if connection:
@@ -426,11 +453,10 @@ def fetch_toxic_alert_history(hours=24):
                 SELECT sensor_id, reading_value, timestamp
                 FROM sensor
                 WHERE sensor_id = 3
-                AND timestamp >= DATE_SUB(NOW(), INTERVAL %s HOUR)
                 ORDER BY timestamp ASC
             """
-            print(f"Executing toxic alert history query with hours={hours}")
-            cursor.execute(sql, (hours,))
+            print("Executing toxic alert history query for all data")
+            cursor.execute(sql)
             rows = cursor.fetchall()
             print(f"Found {len(rows)} toxic alert history records")
             if rows:
@@ -442,4 +468,108 @@ def fetch_toxic_alert_history(hours=24):
         except Error as e:
             print(f"Error fetching toxic alert history: {e}")
             return []
-    return [] 
+    return []
+
+def fetch_fill_level_history():
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor(dictionary=True)
+            # Get the last 24 hours of data
+            sql = """
+                SELECT 
+                    timestamp,
+                    CASE 
+                        WHEN sensor_id = '002' THEN 'Non-Biodegradable'
+                        WHEN sensor_id = '001' THEN 'Recyclable'
+                    END as category,
+                    CAST(REPLACE(reading_value, '%', '') AS DECIMAL(5,2)) as fill_level
+                FROM sensor
+                WHERE sensor_id IN ('001', '002')
+                ORDER BY timestamp ASC
+            """
+            cursor.execute(sql)
+            data = cursor.fetchall()
+            cursor.close()
+            connection.close()
+
+            # Format the data for the chart
+            formatted_data = {
+                'Non-Biodegradable': [],
+                'Recyclable': []
+            }
+            
+            for row in data:
+                timestamp = int(datetime.strptime(str(row['timestamp']), '%Y-%m-%d %H:%M:%S').timestamp() * 1000)
+                formatted_data[row['category']].append({
+                    'x': timestamp,
+                    'y': float(row['fill_level'])
+                })
+
+            return {
+                'status': 'success',
+                'data': formatted_data
+            }
+    except Exception as e:
+        print(f"Error fetching fill level history: {str(e)}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
+def is_valid_timestamp(timestamp):
+    """Check if the timestamp is valid (not in the future and not too old)"""
+    try:
+        # Convert string timestamp to datetime if needed
+        if isinstance(timestamp, str):
+            timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        now = datetime.now()
+        # Check if timestamp is not in the future
+        if timestamp > now:
+            return False
+        # Check if timestamp is not too old (e.g., not older than 24 hours)
+        if now - timestamp > timedelta(hours=24):
+            return False
+        return True
+    except Exception as e:
+        print(f"Error validating timestamp: {e}")
+        return False
+
+def can_send_email(alert_type, current_value):
+    """Check if we should send an email based on new data"""
+    with email_lock:
+        last_data = last_email_data.get(alert_type)
+        
+        # If this is the first email or no previous data
+        if last_data['time'] is None or last_data['value'] is None:
+            return True
+            
+        # For toxic alerts, only send if:
+        # 1. The value is different from last sent value
+        # 2. The new value is ABOVE NORMAL or TOXIC
+        if alert_type == 'toxic':
+            if current_value != last_data['value'] and current_value in ["ABOVE NORMAL", "TOXIC"]:
+                logging.info(f"Sending email for new toxic status: {current_value}")
+                return True
+            logging.info(f"Skipping email - no new toxic status or status not critical")
+            return False
+            
+        # For fill level alerts, only send if the value is different
+        return current_value != last_data['value']
+
+def update_last_email_data(alert_type, value):
+    """Update the last email sent time and value for a specific alert type"""
+    with email_lock:
+        last_email_data[alert_type] = {
+            'time': datetime.now(),
+            'value': value,
+            'sent': True
+        }
+        logging.info(f"Updated last email data for {alert_type}: value={value}, time={datetime.now()}")
+
+def reset_email_sent_flag(alert_type):
+    """Reset the sent flag for an alert type"""
+    with email_lock:
+        if alert_type in last_email_data:
+            last_email_data[alert_type]['sent'] = False
+            logging.info(f"Reset sent flag for {alert_type}") 
