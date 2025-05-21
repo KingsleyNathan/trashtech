@@ -103,7 +103,7 @@ def dashboard_data():
                 nonbio_level_num = int(str(nonbio_level_raw).replace('%', '').strip())
             logger.info(f"Parsed non-bio level: {nonbio_level_num}")
             
-            if nonbio_level_num in [80, 90, 100] and can_send_email('nonbio', nonbio_level_num):
+            if 80 <= nonbio_level_num <= 100 and can_send_email('nonbio', nonbio_level_num):
                 subject, body = get_fill_level_email("Non-Biodegradable", nonbio_level_num)
                 recipients = current_app.config['ALERT_RECIPIENTS']
                 if send_email(subject, body, recipients):
@@ -125,7 +125,7 @@ def dashboard_data():
                 recy_level_num = int(str(recy_level_raw).replace('%', '').strip())
             logger.info(f"Parsed recyclable level: {recy_level_num}")
             
-            if recy_level_num in [80, 90, 100] and can_send_email('recyclable', recy_level_num):
+            if 80 <= recy_level_num <= 100 and can_send_email('recyclable', recy_level_num):
                 subject, body = get_fill_level_email("Recyclable", recy_level_num)
                 recipients = current_app.config['ALERT_RECIPIENTS']
                 if send_email(subject, body, recipients):
