@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
       data: [0, 0, 0]  // Initialize with zeros
     }],
     xaxis: { 
-      categories: ['Recyclable', 'Biodegradable', 'Non-biodegradable']
+      categories: ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
     },
     colors: ['#42a5f5', '#66bb6a', '#ffa726'],
     plotOptions: {
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   trashCountsChart.render();
 
-  const expectedCategories = ['Recyclable', 'Biodegradable', 'Non-biodegradable'];
+  const expectedCategories = ['Recyclable', 'Biodegradable', 'Non-Biodegradable'];
   const classificationChart = new ApexCharts(document.querySelector("#classification-distribution-chart"), {
     chart: { 
       type: 'pie',
@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     },
     series: [{
-      name: 'Non-biodegradable',
+      name: 'Non-Biodegradable',
       data: []
     }, {
       name: 'Recyclable',
@@ -222,7 +222,13 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateFillLevelHistory() {
     console.log('Fetching fill level history...');  // Debug log
     fetch('/api/fill-level-history')
-      .then(response => response.json())
+      .then(response => {
+        console.log('Response status:', response.status);  // Debug log
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(result => {
         console.log('Received fill level history:', result);  // Debug log
         if (result.status === 'success') {
@@ -230,22 +236,32 @@ document.addEventListener("DOMContentLoaded", function () {
           console.log('Fill level data:', data);  // Debug log
           
           // Log the data for each category
-          console.log('Non-biodegradable data:', data['Non-biodegradable']);
-          console.log('Recyclable data:', data['Recyclable']);
+          console.log('Non-Biodegradable data points:', data['Non-Biodegradable']?.length || 0);
+          console.log('Recyclable data points:', data['Recyclable']?.length || 0);
+          
+          if (data['Non-Biodegradable']?.length === 0 && data['Recyclable']?.length === 0) {
+            console.warn('No fill level data available for any category');
+          }
           
           // Update the chart with the data
-          fillLevelTrendChart.updateSeries([
+          const seriesData = [
             {
-              name: 'Non-biodegradable',
-              data: data['Non-biodegradable'] || []
+              name: 'Non-Biodegradable',
+              data: data['Non-Biodegradable'] || []
             },
             {
               name: 'Recyclable',
               data: data['Recyclable'] || []
             }
-          ]);
+          ];
+          
+          console.log('Updating chart with series data:', seriesData);  // Debug log
+          fillLevelTrendChart.updateSeries(seriesData);
+          
+          // Force chart to redraw
+          fillLevelTrendChart.render();
         } else {
-          console.error('Error fetching fill level history:', result.message);
+          console.error('Error in fill level history response:', result.message);
         }
       })
       .catch(error => {
@@ -265,7 +281,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const totalCounts = {
           'Recyclable': 0,
           'Biodegradable': 0,
-          'Non-biodegradable': 0
+          'Non-Biodegradable': 0
         };
 
         if (data.classification_distribution && Array.isArray(data.classification_distribution)) {
@@ -280,7 +296,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const trashCountsData = [
           totalCounts['Recyclable'],
           totalCounts['Biodegradable'],
-          totalCounts['Non-biodegradable']
+          totalCounts['Non-Biodegradable']
         ];
         console.log('Updating trash counts chart with:', trashCountsData);  // Debug log
         trashCountsChart.updateSeries([{
@@ -292,13 +308,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const distributionData = [
           totalCounts['Recyclable'],
           totalCounts['Biodegradable'],
-          totalCounts['Non-biodegradable']
+          totalCounts['Non-Biodegradable']
         ];
         console.log('Updating classification chart with:', distributionData);  // Debug log
         classificationChart.updateSeries(distributionData);
 
         // Update fill levels based on counts
-        const nonBioFillLevel = Math.min(Math.round((totalCounts['Non-biodegradable'] / 100) * 100), 100);
+        const nonBioFillLevel = Math.min(Math.round((totalCounts['Non-Biodegradable'] / 100) * 100), 100);
         const recyclableFillLevel = Math.min(Math.round((totalCounts['Recyclable'] / 100) * 100), 100);
         
         // Show latest non-bio reading value and timestamp
@@ -333,20 +349,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update toxic alert chart with historical data
         if (data.toxic_alert_history && data.toxic_alert_history.length > 0) {
+          console.log('Processing toxic alert history:', data.toxic_alert_history);  // Debug log
+          
           const normalData = [];
           const aboveNormalData = [];
           const toxicData = [];
+          
           data.toxic_alert_history.forEach(alert => {
-            const timestamp = new Date(alert.timestamp).getTime();
+            const timestamp = alert.timestamp;  // Already in milliseconds
             const status = alert.reading_value.toUpperCase();
-            if (status === 'NORMAL') {
+            const statusValue = alert.status_value;
+            
+            console.log('Processing alert:', { timestamp, status, statusValue });  // Debug log
+            
+            if (status === 'NORMAL' || statusValue === 0) {
               normalData.push({ x: timestamp, y: 0 });
-            } else if (status === 'ABOVE NORMAL') {
+            } else if (status === 'ABOVE NORMAL' || statusValue === 1) {
               aboveNormalData.push({ x: timestamp, y: 1 });
-            } else if (status === 'TOXIC') {
+            } else if (status === 'TOXIC' || statusValue === 2) {
               toxicData.push({ x: timestamp, y: 2 });
             }
           });
+          
+          console.log('Chart data:', {  // Debug log
+            normal: normalData,
+            aboveNormal: aboveNormalData,
+            toxic: toxicData
+          });
+          
           toxicAlertChart.updateSeries([
             { name: 'Normal', data: normalData },
             { name: 'Above Normal', data: aboveNormalData },

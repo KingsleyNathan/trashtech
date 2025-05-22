@@ -82,7 +82,7 @@ def fetch_non_biodegradable_trash():
             sql = """
                 SELECT category, timestamp 
                 FROM trash 
-                WHERE category = 'Non-biodegradable'
+                WHERE category = 'Non-Biodegradable'
                 ORDER BY timestamp DESC
             """
             cursor.execute(sql)
@@ -124,7 +124,7 @@ def fetch_trash_by_category():
             sql = """
                 SELECT category, COUNT(*) as count 
                 FROM trash 
-                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
+                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 GROUP BY category
             """
             cursor.execute(sql)
@@ -163,7 +163,7 @@ def fetch_trash_by_time(interval='day'):
                     COUNT(*) as count
                 FROM trash
                 WHERE timestamp >= %s
-                AND category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
+                AND category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 GROUP BY time_period, category
                 ORDER BY time_period
             """
@@ -185,19 +185,19 @@ def fetch_sensor_status():
             sql = """
                 SELECT s.sensor_id, 
                        CASE 
-                           WHEN s.sensor_id = '001' THEN 'Recyclable'
-                           WHEN s.sensor_id = '002' THEN 'Non-biodegradable'
-                           WHEN s.sensor_id = '003' THEN 'Biodegradable'
+                           WHEN s.sensor_id = 1 THEN 'Non-Biodegradable'
+                           WHEN s.sensor_id = 2 THEN 'Recyclable'
+                           WHEN s.sensor_id = 3 THEN 'Biodegradable'
                        END as category,
                        COUNT(t.id) as trash_count
                 FROM sensor s
                 LEFT JOIN trash t ON t.category = 
                     CASE 
-                        WHEN s.sensor_id = '001' THEN 'Recyclable'
-                        WHEN s.sensor_id = '002' THEN 'Non-biodegradable'
-                        WHEN s.sensor_id = '003' THEN 'Biodegradable'
+                        WHEN s.sensor_id = 1 THEN 'Non-Biodegradable'
+                        WHEN s.sensor_id = 2 THEN 'Recyclable'
+                        WHEN s.sensor_id = 3 THEN 'Biodegradable'
                     END
-                WHERE s.sensor_id IN ('001', '002', '003')
+                WHERE s.sensor_id IN (1, 2, 3)
                 GROUP BY s.sensor_id
             """
             cursor.execute(sql)
@@ -212,7 +212,7 @@ def fetch_sensor_status():
 
 def fetch_trash_counts():
     connection = get_db_connection()
-    categories = ['Recyclable', 'Biodegradable', 'Non-biodegradable']
+    categories = ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
     result = {cat: 0 for cat in categories}
     if connection:
         try:
@@ -222,7 +222,7 @@ def fetch_trash_counts():
                     category,
                     COUNT(*) as count
                 FROM trash 
-                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
+                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 GROUP BY category
             """
             print("Executing trash counts query:", sql)  # Debug log
@@ -243,7 +243,7 @@ def fetch_trash_counts():
 
 def fetch_classification_distribution():
     connection = get_db_connection()
-    categories = ['Recyclable', 'Biodegradable', 'Non-biodegradable']
+    categories = ['Recyclable', 'Biodegradable', 'Non-Biodegradable']
     result = {cat: 0 for cat in categories}
     if connection:
         try:
@@ -253,7 +253,7 @@ def fetch_classification_distribution():
                     category,
                     COUNT(*) as count
                 FROM trash 
-                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
+                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 GROUP BY category
             """
             print("Executing classification distribution query:", sql)  # Debug log
@@ -280,7 +280,7 @@ def fetch_latest_detection():
             sql = """
                 SELECT category, timestamp
                 FROM trash
-                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-biodegradable')
+                WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 ORDER BY timestamp DESC
                 LIMIT 1
             """
@@ -459,12 +459,41 @@ def fetch_toxic_alert_history(hours=None):
             cursor.execute(sql)
             rows = cursor.fetchall()
             print(f"Found {len(rows)} toxic alert history records")
-            if rows:
-                print(f"First record: {rows[0]}")
-                print(f"Last record: {rows[-1]}")
+            
+            # Process and format the data
+            formatted_rows = []
+            for row in rows:
+                try:
+                    # Parse the timestamp in DD/MM/YYYY HH:MM format
+                    timestamp = datetime.strptime(str(row['timestamp']), '%d/%m/%Y %H:%M')
+                    # Convert to milliseconds for the chart
+                    timestamp_ms = int(timestamp.timestamp() * 1000)
+                    
+                    # Map the status to numeric values
+                    status = row['reading_value'].upper()
+                    status_value = 0  # Default to Normal
+                    if status == 'ABOVE NORMAL':
+                        status_value = 1
+                    elif status == 'TOXIC':
+                        status_value = 2
+                    
+                    formatted_rows.append({
+                        'sensor_id': row['sensor_id'],
+                        'reading_value': status,
+                        'timestamp': timestamp_ms,
+                        'status_value': status_value
+                    })
+                except Exception as e:
+                    print(f"Error processing toxic alert row {row}: {str(e)}")
+                    continue
+            
+            if formatted_rows:
+                print(f"First formatted record: {formatted_rows[0]}")
+                print(f"Last formatted record: {formatted_rows[-1]}")
+            
             cursor.close()
             connection.close()
-            return rows
+            return formatted_rows
         except Error as e:
             print(f"Error fetching toxic alert history: {e}")
             return []
@@ -475,21 +504,23 @@ def fetch_fill_level_history():
         connection = get_db_connection()
         if connection:
             cursor = connection.cursor(dictionary=True)
-            # Get the last 24 hours of data
+            # Get all data without time restriction
             sql = """
                 SELECT 
                     timestamp,
                     CASE 
-                        WHEN sensor_id = '002' THEN 'Non-Biodegradable'
-                        WHEN sensor_id = '001' THEN 'Recyclable'
+                        WHEN sensor_id = 1 THEN 'Non-Biodegradable'
+                        WHEN sensor_id = 2 THEN 'Recyclable'
                     END as category,
-                    CAST(REPLACE(reading_value, '%', '') AS DECIMAL(5,2)) as fill_level
+                    reading_value
                 FROM sensor
-                WHERE sensor_id IN ('001', '002')
+                WHERE sensor_id IN (1, 2)
                 ORDER BY timestamp ASC
             """
+            print("Executing fill level history query:", sql)  # Debug log
             cursor.execute(sql)
             data = cursor.fetchall()
+            print("Raw data from database:", data)  # Debug log
             cursor.close()
             connection.close()
 
@@ -500,11 +531,33 @@ def fetch_fill_level_history():
             }
             
             for row in data:
-                timestamp = int(datetime.strptime(str(row['timestamp']), '%Y-%m-%d %H:%M:%S').timestamp() * 1000)
-                formatted_data[row['category']].append({
-                    'x': timestamp,
-                    'y': float(row['fill_level'])
-                })
+                try:
+                    # Parse the timestamp in DD/MM/YYYY HH:MM format
+                    timestamp = datetime.strptime(str(row['timestamp']), '%d/%m/%Y %H:%M')
+                    # Convert to milliseconds for the chart
+                    timestamp_ms = int(timestamp.timestamp() * 1000)
+                    
+                    # Handle fill level value
+                    fill_level = row['reading_value']
+                    if isinstance(fill_level, str):
+                        # Remove any % symbol and convert to float
+                        fill_level = float(fill_level.replace('%', '').strip())
+                    else:
+                        fill_level = float(fill_level)
+                    
+                    print(f"Processing row - Category: {row['category']}, Timestamp: {timestamp}, Fill Level: {fill_level}")  # Debug log
+                    
+                    formatted_data[row['category']].append({
+                        'x': timestamp_ms,
+                        'y': fill_level
+                    })
+                except Exception as e:
+                    print(f"Error processing row {row}: {str(e)}")
+                    continue
+            
+            print("Formatted data for chart:", formatted_data)  # Debug log
+            print("Non-Biodegradable data points:", len(formatted_data['Non-Biodegradable']))  # Debug log
+            print("Recyclable data points:", len(formatted_data['Recyclable']))  # Debug log
 
             return {
                 'status': 'success',
