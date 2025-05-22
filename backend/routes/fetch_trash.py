@@ -319,13 +319,39 @@ def fetch_last_detection_per_sensor():
             return result
     return result
 
+def is_valid_timestamp(timestamp):
+    """Check if the timestamp is valid (not in the future and not too old)"""
+    try:
+        # Convert string timestamp to datetime if needed
+        if isinstance(timestamp, str):
+            # Try our format first (DD/MM/YYYY HH:MM)
+            try:
+                timestamp = datetime.strptime(timestamp, '%d/%m/%Y %H:%M')
+            except ValueError:
+                # Try the alternative format (YYYY-MM-DD HH:MM:SS)
+                timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        
+        now = datetime.now()
+        # Check if timestamp is not in the future
+        if timestamp > now:
+            print(f"Invalid timestamp: {timestamp} is in the future")
+            return False
+        # Check if timestamp is not too old (e.g., not older than 24 hours)
+        if now - timestamp > timedelta(hours=24):
+            print(f"Invalid timestamp: {timestamp} is too old")
+            return False
+        return True
+    except Exception as e:
+        print(f"Error validating timestamp: {e}")
+        return False
+
 def fetch_latest_toxic_status():
     connection = get_db_connection()
     if connection:
         try:
             cursor = connection.cursor(dictionary=True)
             sql = """
-                SELECT sensor_id, reading_value, timestamp
+                SELECT id, sensor_id, reading_value, timestamp
                 FROM sensor
                 WHERE sensor_id = 3
                 ORDER BY timestamp DESC
@@ -333,15 +359,33 @@ def fetch_latest_toxic_status():
             """
             cursor.execute(sql)
             toxic_row = cursor.fetchone()
-            cursor.close()
-            connection.close()
+            
             if toxic_row:
-                return [toxic_row]
+                try:
+                    # Map the status to numeric values for consistency
+                    status = toxic_row['reading_value'].upper()
+                    status_value = 0  # Default to Normal
+                    if status == 'ABOVE NORMAL':
+                        status_value = 1
+                    elif status == 'TOXIC':
+                        status_value = 2
+                    toxic_row['status_value'] = status_value
+                    
+                    # Ensure timestamp is in the correct format
+                    if isinstance(toxic_row['timestamp'], str):
+                        # If it's already a string, keep it as is
+                        pass
+                    else:
+                        # If it's a datetime object, format it
+                        toxic_row['timestamp'] = toxic_row['timestamp'].strftime('%d/%m/%Y %H:%M')
+                    
+                    return [toxic_row]
+                except Exception as e:
+                    return []
             return []
         except Error as e:
-            print(f"Error fetching latest toxic status: {e}")
-            return None
-    return None
+            return []
+    return []
 
 def fetch_latest_non_bio_status():
     connection = get_db_connection()
@@ -453,19 +497,22 @@ def fetch_toxic_alert_history(hours=None):
                 SELECT sensor_id, reading_value, timestamp
                 FROM sensor
                 WHERE sensor_id = 3
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
+                LIMIT 100
             """
-            print("Executing toxic alert history query for all data")
             cursor.execute(sql)
             rows = cursor.fetchall()
-            print(f"Found {len(rows)} toxic alert history records")
             
             # Process and format the data
             formatted_rows = []
             for row in rows:
                 try:
-                    # Parse the timestamp in DD/MM/YYYY HH:MM format
-                    timestamp = datetime.strptime(str(row['timestamp']), '%d/%m/%Y %H:%M')
+                    # Handle timestamp conversion
+                    if isinstance(row['timestamp'], str):
+                        timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                    else:
+                        timestamp = row['timestamp']
+                    
                     # Convert to milliseconds for the chart
                     timestamp_ms = int(timestamp.timestamp() * 1000)
                     
@@ -484,18 +531,12 @@ def fetch_toxic_alert_history(hours=None):
                         'status_value': status_value
                     })
                 except Exception as e:
-                    print(f"Error processing toxic alert row {row}: {str(e)}")
                     continue
-            
-            if formatted_rows:
-                print(f"First formatted record: {formatted_rows[0]}")
-                print(f"Last formatted record: {formatted_rows[-1]}")
             
             cursor.close()
             connection.close()
             return formatted_rows
         except Error as e:
-            print(f"Error fetching toxic alert history: {e}")
             return []
     return []
 
@@ -504,7 +545,7 @@ def fetch_fill_level_history():
         connection = get_db_connection()
         if connection:
             cursor = connection.cursor(dictionary=True)
-            # Get all data without time restriction
+            # Get recent data with limit
             sql = """
                 SELECT 
                     timestamp,
@@ -515,12 +556,11 @@ def fetch_fill_level_history():
                     reading_value
                 FROM sensor
                 WHERE sensor_id IN (1, 2)
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
+                LIMIT 100
             """
-            print("Executing fill level history query:", sql)  # Debug log
             cursor.execute(sql)
             data = cursor.fetchall()
-            print("Raw data from database:", data)  # Debug log
             cursor.close()
             connection.close()
 
@@ -532,8 +572,12 @@ def fetch_fill_level_history():
             
             for row in data:
                 try:
-                    # Parse the timestamp in DD/MM/YYYY HH:MM format
-                    timestamp = datetime.strptime(str(row['timestamp']), '%d/%m/%Y %H:%M')
+                    # Handle timestamp conversion
+                    if isinstance(row['timestamp'], str):
+                        timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                    else:
+                        timestamp = row['timestamp']
+                    
                     # Convert to milliseconds for the chart
                     timestamp_ms = int(timestamp.timestamp() * 1000)
                     
@@ -545,48 +589,22 @@ def fetch_fill_level_history():
                     else:
                         fill_level = float(fill_level)
                     
-                    print(f"Processing row - Category: {row['category']}, Timestamp: {timestamp}, Fill Level: {fill_level}")  # Debug log
-                    
                     formatted_data[row['category']].append({
                         'x': timestamp_ms,
                         'y': fill_level
                     })
                 except Exception as e:
-                    print(f"Error processing row {row}: {str(e)}")
                     continue
-            
-            print("Formatted data for chart:", formatted_data)  # Debug log
-            print("Non-Biodegradable data points:", len(formatted_data['Non-Biodegradable']))  # Debug log
-            print("Recyclable data points:", len(formatted_data['Recyclable']))  # Debug log
 
             return {
                 'status': 'success',
                 'data': formatted_data
             }
     except Exception as e:
-        print(f"Error fetching fill level history: {str(e)}")
         return {
             'status': 'error',
             'message': str(e)
         }
-
-def is_valid_timestamp(timestamp):
-    """Check if the timestamp is valid (not in the future and not too old)"""
-    try:
-        # Convert string timestamp to datetime if needed
-        if isinstance(timestamp, str):
-            timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-        now = datetime.now()
-        # Check if timestamp is not in the future
-        if timestamp > now:
-            return False
-        # Check if timestamp is not too old (e.g., not older than 24 hours)
-        if now - timestamp > timedelta(hours=24):
-            return False
-        return True
-    except Exception as e:
-        print(f"Error validating timestamp: {e}")
-        return False
 
 def can_send_email(alert_type, current_value):
     """Check if we should send an email based on new data"""

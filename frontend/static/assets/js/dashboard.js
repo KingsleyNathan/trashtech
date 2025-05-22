@@ -220,48 +220,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Function to fetch and update fill level history
   function updateFillLevelHistory() {
-    console.log('Fetching fill level history...');  // Debug log
     fetch('/api/fill-level-history')
       .then(response => {
-        console.log('Response status:', response.status);  // Debug log
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
       })
       .then(result => {
-        console.log('Received fill level history:', result);  // Debug log
         if (result.status === 'success') {
-          const data = result.data;
-          console.log('Fill level data:', data);  // Debug log
-          
-          // Log the data for each category
-          console.log('Non-Biodegradable data points:', data['Non-Biodegradable']?.length || 0);
-          console.log('Recyclable data points:', data['Recyclable']?.length || 0);
-          
-          if (data['Non-Biodegradable']?.length === 0 && data['Recyclable']?.length === 0) {
-            console.warn('No fill level data available for any category');
-          }
-          
-          // Update the chart with the data
-          const seriesData = [
-            {
-              name: 'Non-Biodegradable',
-              data: data['Non-Biodegradable'] || []
-            },
-            {
-              name: 'Recyclable',
-              data: data['Recyclable'] || []
-            }
-          ];
-          
-          console.log('Updating chart with series data:', seriesData);  // Debug log
-          fillLevelTrendChart.updateSeries(seriesData);
-          
-          // Force chart to redraw
-          fillLevelTrendChart.render();
-        } else {
-          console.error('Error in fill level history response:', result.message);
+          updateFillLevelChart(result);
         }
       })
       .catch(error => {
@@ -271,12 +239,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Function to update dashboard data
   function updateDashboard() {
-    console.log('Fetching dashboard data...');  // Debug log
     fetch('/api/dashboard-data')
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
-        console.log('Received dashboard data:', data);  // Debug log
-
         // Calculate total counts for each category
         const totalCounts = {
           'Recyclable': 0,
@@ -298,7 +268,6 @@ document.addEventListener("DOMContentLoaded", function () {
           totalCounts['Biodegradable'],
           totalCounts['Non-Biodegradable']
         ];
-        console.log('Updating trash counts chart with:', trashCountsData);  // Debug log
         trashCountsChart.updateSeries([{
           name: 'Count',
           data: trashCountsData
@@ -310,7 +279,6 @@ document.addEventListener("DOMContentLoaded", function () {
           totalCounts['Biodegradable'],
           totalCounts['Non-Biodegradable']
         ];
-        console.log('Updating classification chart with:', distributionData);  // Debug log
         classificationChart.updateSeries(distributionData);
 
         // Update fill levels based on counts
@@ -340,51 +308,19 @@ document.addEventListener("DOMContentLoaded", function () {
         // Update toxic alert status
         if (data.toxic_alert && data.toxic_alert.length > 0) {
           const toxic = data.toxic_alert[0];
+          console.log('Toxic alert data:', toxic);  // Debug log
           document.getElementById('toxic-status').textContent = toxic.reading_value;
+          
+          // Display the timestamp in its original format
           document.getElementById('toxic-timestamp').textContent = toxic.timestamp;
         } else {
+          console.log('No toxic alert data found');  // Debug log
           document.getElementById('toxic-status').textContent = 'No Data';
           document.getElementById('toxic-timestamp').textContent = '';
         }
 
-        // Update toxic alert chart with historical data
-        if (data.toxic_alert_history && data.toxic_alert_history.length > 0) {
-          console.log('Processing toxic alert history:', data.toxic_alert_history);  // Debug log
-          
-          const normalData = [];
-          const aboveNormalData = [];
-          const toxicData = [];
-          
-          data.toxic_alert_history.forEach(alert => {
-            const timestamp = alert.timestamp;  // Already in milliseconds
-            const status = alert.reading_value.toUpperCase();
-            const statusValue = alert.status_value;
-            
-            console.log('Processing alert:', { timestamp, status, statusValue });  // Debug log
-            
-            if (status === 'NORMAL' || statusValue === 0) {
-              normalData.push({ x: timestamp, y: 0 });
-            } else if (status === 'ABOVE NORMAL' || statusValue === 1) {
-              aboveNormalData.push({ x: timestamp, y: 1 });
-            } else if (status === 'TOXIC' || statusValue === 2) {
-              toxicData.push({ x: timestamp, y: 2 });
-            }
-          });
-          
-          console.log('Chart data:', {  // Debug log
-            normal: normalData,
-            aboveNormal: aboveNormalData,
-            toxic: toxicData
-          });
-          
-          toxicAlertChart.updateSeries([
-            { name: 'Normal', data: normalData },
-            { name: 'Above Normal', data: aboveNormalData },
-            { name: 'Toxic', data: toxicData }
-          ]);
-        } else {
-          console.log('No toxic alert history data available');  // Debug log
-        }
+        // Update toxic alert chart
+        updateToxicAlertChart(data);
       })
       .catch(error => {
         console.error('Error fetching dashboard data:', error);
@@ -395,8 +331,69 @@ document.addEventListener("DOMContentLoaded", function () {
   updateDashboard();
   updateFillLevelHistory();
 
-  // Auto-refresh every 5 minutes
-  setInterval(updateDashboard, 300000);
-  // Auto-refresh history every 15 minutes
-  setInterval(updateFillLevelHistory, 900000);
+  // Auto-refresh every 30 seconds
+  setInterval(updateDashboard, 30000);
+  // Auto-refresh history every 1 minute
+  setInterval(updateFillLevelHistory, 60000);
+
+  // Function to update toxic alert chart
+  function updateToxicAlertChart(data) {
+    if (!data || !data.toxic_alert_history || data.toxic_alert_history.length === 0) {
+      console.log('No toxic alert history data available');
+      return;
+    }
+
+    const normalData = [];
+    const aboveNormalData = [];
+    const toxicData = [];
+    
+    data.toxic_alert_history.forEach(alert => {
+      const timestamp = alert.timestamp;
+      const status = alert.reading_value.toUpperCase();
+      const statusValue = alert.status_value;
+      
+      if (status === 'NORMAL' || statusValue === 0) {
+        normalData.push({ x: timestamp, y: 0 });
+      } else if (status === 'ABOVE NORMAL' || statusValue === 1) {
+        aboveNormalData.push({ x: timestamp, y: 1 });
+      } else if (status === 'TOXIC' || statusValue === 2) {
+        toxicData.push({ x: timestamp, y: 2 });
+      }
+    });
+
+    try {
+      toxicAlertChart.updateSeries([
+        { name: 'Normal', data: normalData },
+        { name: 'Above Normal', data: aboveNormalData },
+        { name: 'Toxic', data: toxicData }
+      ]);
+    } catch (error) {
+      console.error('Error updating toxic alert chart:', error);
+    }
+  }
+
+  // Function to update fill level chart
+  function updateFillLevelChart(data) {
+    if (!data || !data.data) {
+      console.log('No fill level data available');
+      return;
+    }
+
+    const seriesData = [
+      {
+        name: 'Non-Biodegradable',
+        data: data.data['Non-Biodegradable'] || []
+      },
+      {
+        name: 'Recyclable',
+        data: data.data['Recyclable'] || []
+      }
+    ];
+
+    try {
+      fillLevelTrendChart.updateSeries(seriesData);
+    } catch (error) {
+      console.error('Error updating fill level chart:', error);
+    }
+  }
 }); 
