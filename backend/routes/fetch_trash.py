@@ -359,13 +359,24 @@ def fetch_latest_toxic_status():
                         status_value = 2
                     toxic_row['status_value'] = status_value
                     
-                    # Ensure timestamp is in the correct format
+                    # Handle timestamp conversion
                     if isinstance(toxic_row['timestamp'], str):
-                        # If it's already a string, keep it as is
-                        pass
+                        try:
+                            # Try the standard format first
+                            timestamp = datetime.strptime(toxic_row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            try:
+                                # Try the alternative format (DD/MM/YYYY HH:MM)
+                                timestamp = datetime.strptime(toxic_row['timestamp'], '%d/%m/%Y %H:%M')
+                            except ValueError:
+                                # If both formats fail, use the original string
+                                timestamp = toxic_row['timestamp']
                     else:
-                        # If it's a datetime object, format it
-                        toxic_row['timestamp'] = toxic_row['timestamp'].strftime('%d/%m/%Y %H:%M')
+                        timestamp = toxic_row['timestamp']
+                    
+                    # Format the timestamp consistently
+                    if isinstance(timestamp, datetime):
+                        toxic_row['timestamp'] = timestamp.strftime('%d/%m/%Y %H:%M')
                     
                     return [toxic_row]
                 except Exception as e:
@@ -497,7 +508,16 @@ def fetch_toxic_alert_history(hours=None):
                 try:
                     # Handle timestamp conversion
                     if isinstance(row['timestamp'], str):
-                        timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                        try:
+                            # Try the standard format first
+                            timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            try:
+                                # Try the alternative format (DD/MM/YYYY HH:MM)
+                                timestamp = datetime.strptime(row['timestamp'], '%d/%m/%Y %H:%M')
+                            except ValueError:
+                                # If both formats fail, skip this row
+                                continue
                     else:
                         timestamp = row['timestamp']
                     
