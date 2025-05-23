@@ -2,7 +2,6 @@ from backend.routes.connection import get_db_connection
 from mysql.connector import Error
 from datetime import datetime, timedelta
 import threading
-import logging
 
 # Global lock for email sending
 email_lock = threading.Lock()
@@ -225,19 +224,15 @@ def fetch_trash_counts():
                 WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 GROUP BY category
             """
-            print("Executing trash counts query:", sql)  # Debug log
             cursor.execute(sql)
             counts = cursor.fetchall()
-            print("Raw counts from database:", counts)  # Debug log
             cursor.close()
             connection.close()
             for row in counts:
                 result[row['category']] = row['count']
             final_result = [{'category': cat, 'count': result[cat]} for cat in categories]
-            print("Final trash counts result:", final_result)  # Debug log
             return final_result
         except Error as e:
-            print(f"Error fetching trash counts: {e}")
             return [{'category': cat, 'count': 0} for cat in categories]
     return [{'category': cat, 'count': 0} for cat in categories]
 
@@ -256,19 +251,15 @@ def fetch_classification_distribution():
                 WHERE category IN ('Recyclable', 'Biodegradable', 'Non-Biodegradable')
                 GROUP BY category
             """
-            print("Executing classification distribution query:", sql)  # Debug log
             cursor.execute(sql)
             distribution = cursor.fetchall()
-            print("Raw distribution from database:", distribution)  # Debug log
             cursor.close()
             connection.close()
             for row in distribution:
                 result[row['category']] = row['count']
             final_result = [{'category': cat, 'count': result[cat]} for cat in categories]
-            print("Final classification distribution result:", final_result)  # Debug log
             return final_result
         except Error as e:
-            print(f"Error fetching classification distribution: {e}")
             return [{'category': cat, 'count': 0} for cat in categories]
     return [{'category': cat, 'count': 0} for cat in categories]
 
@@ -334,15 +325,12 @@ def is_valid_timestamp(timestamp):
         now = datetime.now()
         # Check if timestamp is not in the future
         if timestamp > now:
-            print(f"Invalid timestamp: {timestamp} is in the future")
             return False
         # Check if timestamp is not too old (e.g., not older than 24 hours)
         if now - timestamp > timedelta(hours=24):
-            print(f"Invalid timestamp: {timestamp} is too old")
             return False
         return True
-    except Exception as e:
-        print(f"Error validating timestamp: {e}")
+    except Exception:
         return False
 
 def fetch_latest_toxic_status():
@@ -574,7 +562,16 @@ def fetch_fill_level_history():
                 try:
                     # Handle timestamp conversion
                     if isinstance(row['timestamp'], str):
-                        timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                        try:
+                            # Try the standard format first
+                            timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            try:
+                                # Try the alternative format (DD/MM/YYYY HH:MM)
+                                timestamp = datetime.strptime(row['timestamp'], '%d/%m/%Y %H:%M')
+                            except ValueError:
+                                # If both formats fail, skip this row
+                                continue
                     else:
                         timestamp = row['timestamp']
                     
@@ -620,9 +617,7 @@ def can_send_email(alert_type, current_value):
         # 2. The new value is ABOVE NORMAL or TOXIC
         if alert_type == 'toxic':
             if current_value != last_data['value'] and current_value in ["ABOVE NORMAL", "TOXIC"]:
-                logging.info(f"Sending email for new toxic status: {current_value}")
                 return True
-            logging.info(f"Skipping email - no new toxic status or status not critical")
             return False
             
         # For fill level alerts, only send if the value is different
@@ -636,11 +631,9 @@ def update_last_email_data(alert_type, value):
             'value': value,
             'sent': True
         }
-        logging.info(f"Updated last email data for {alert_type}: value={value}, time={datetime.now()}")
 
 def reset_email_sent_flag(alert_type):
     """Reset the sent flag for an alert type"""
     with email_lock:
         if alert_type in last_email_data:
-            last_email_data[alert_type]['sent'] = False
-            logging.info(f"Reset sent flag for {alert_type}") 
+            last_email_data[alert_type]['sent'] = False 
